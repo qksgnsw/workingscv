@@ -1,0 +1,11 @@
+.DS_Store
+package*
+node_modules
+.vagrant
+*.sqlite3
+__pycache__
+credentials
+
+.terraform*
+*tfstate*
+*.tfvars
