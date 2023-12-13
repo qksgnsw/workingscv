@@ -57,11 +57,14 @@ locals {
   sed -i "s/^#PermitRootLogin yes/PermitRootLogin yes/g" /etc/ssh/sshd_config
   sed -i "s/^PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
   systemctl restart sshd
-  yum update -y
-  yum install -y httpd.x86_64
-  systemctl start httpd.service
-  systemctl enable httpd.service
-  echo "<h1>Here is Backend => $(hostname -f)</h1>" > /var/www/html/index.html
+  yum update -y &&
+  yum install golang.x86_64 git -y &&
+  git clone https://github.com/qksgnsw/workingscv.git &&
+  cd ./workingscv/dev/backend/ &&
+  rm -rf go.* &&
+  go mod init github.com/workingscv/dev/backend &&
+  go mod tidy
+  go run ./cmd/backend/main.go
   EOT
 
   tags = {

@@ -9,3 +9,5 @@ credentials
 .terraform*
 *tfstate*
 *.tfvars
+
+go.*

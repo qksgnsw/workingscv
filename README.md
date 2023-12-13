@@ -74,6 +74,7 @@ terraform destroy -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars
         - [ ] Autoscaling
             - [ ] Templete
               - [ ] 앱
+                - [ ] DB 연결
             - [x] policy
 
 
@@ -82,11 +83,12 @@ terraform destroy -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars
       - [ ] 퍼블릭 공개가 되어있는지 확인했는가?
       - [ ] database subnet에 배포되어있는지 확인
     - [x] SSL 인증서
+      - [x] 기본 인증서로 구성 된 후 인증서를 갱신하므로 시간이 오래 걸림. 23/12/13 17:36 확인
     - [ ] Secret manager를 활용한 자격증명 보안
       - [ ] Secret manager로 키 생성
     - [ ] was와의 연결 확인
       - [x] cli 연결
-      - [ ] was와의 연결
+      - [x] was와의 연결
     - [ ] 정책 및 세팅 설정
       - [ ] Master-slave 구현
 
@@ -137,6 +139,9 @@ cd ./workingscv
 
 
 - [ ] backend
+  - [ ] 실행
+    - [ ] DB_HOST를 환경변수로 설정하고 실행
+      - [ ] MY_ENV_VAR=value ./my-binary
   - [ ] db 
     - [x] 스키마
       - [x] 자동 생성 만들기
@@ -146,10 +151,16 @@ cd ./workingscv
       - [x] 로컬 사설 db로 연결
       - [x] RDS 공개 액세스로 연결
       - [ ] private subnet에서 연결
-        - [ ] cli 연결
+        - [x] cli 연결
         - [ ] 앱 연결
           - [ ] id/password로 연결
           - [ ] secret manager 연결
+  - [ ] 빌드 및 배포
+    - [x] 바이너리 생성
+    - [ ] 배포
+    - [ ] autoscaling 템플릿에서 다운 받아 사용 할 수 있는 방안
+      - [ ] 호스팅 사이트 업로드
+      - [ ] 다운로드
   - [x] api
     - [x] Create
     - [x] Update

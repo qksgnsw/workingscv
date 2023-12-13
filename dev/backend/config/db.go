@@ -3,7 +3,8 @@ package config
 import (
 	"database/sql"
 	"fmt"
-	// "os"
+	"os"
+
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -12,13 +13,6 @@ var DB *sql.DB
 func init() {
 	var err error
 
-	// DB, err = sql.Open("mysql", "root:password@tcp(127.0.0.1:13306)/testdb")
-	DB, err = sql.Open("mysql",
-		"admin:password!@tcp(terraform-2023121307505948820000000f.cvthkx2gfpla.ap-northeast-2.rds.amazonaws.com:3306)/testdb")
-	if err != nil {
-		panic(err)
-	}
-
 	// 외부 소스로부터 데이터베이스 연결 정보를 가져옵니다.
 	// dbType := os.Getenv("DB_TYPE")       // 데이터베이스 유형
 	// dbUser := os.Getenv("DB_USER")       // 사용자 이름
@@ -26,12 +20,18 @@ func init() {
 	// dbHost := os.Getenv("DB_HOST")       // 호스트
 	// dbPort := os.Getenv("DB_PORT")       // 포트
 	// dbName := os.Getenv("DB_NAME")       // 데이터베이스 이름
+	dbType := "mysql"              // 데이터베이스 유형
+	dbUser := "admin"              // 사용자 이름
+	dbPassword := "password!"      // 비밀번호
+	dbPort := "3306"               // 포트
+	dbName := "testdb"             // 데이터베이스 이름
+	dbHost := os.Getenv("DB_HOST") // 호스트
 
-	// // 데이터베이스 연결 문자열 생성
-	// connStr := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", dbUser, dbPassword, dbHost, dbPort, dbName)
+	// 데이터베이스 연결 문자열 생성
+	connStr := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", dbUser, dbPassword, dbHost, dbPort, dbName)
 
-	// // 데이터베이스에 연결
-	// DB, err = sql.Open(dbType, connStr)
+	// 데이터베이스에 연결
+	DB, err = sql.Open(dbType, connStr)
 
 	if err = DB.Ping(); err != nil {
 		panic(err)

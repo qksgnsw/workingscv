@@ -1,15 +1,16 @@
 package model
 
 import (
-    "github.com/workingscv/backend/config"
-    "errors"
-    "database/sql"
+	"database/sql"
+	"errors"
+
+	"github.com/workingscv/dev/backend/config"
 )
 
 type Memo struct {
-    ID      int    `json:"id"`
-    Title   string `json:"title"`
-    Content string `json:"content"`
+	ID      int    `json:"id"`
+	Title   string `json:"title"`
+	Content string `json:"content"`
 }
 
 func OneMemo(id int) (Memo, error) {
@@ -20,24 +21,23 @@ func OneMemo(id int) (Memo, error) {
 
 	row := config.DB.QueryRow("SELECT * FROM memos WHERE id = ?", id)
 
-    err := row.Scan(&memo.ID, &memo.Title, &memo.Content)
-    if err != nil {
-        if err == sql.ErrNoRows {
-            return memo, errors.New("404. Not Found.")
-        }
-    return memo, err
-}
+	err := row.Scan(&memo.ID, &memo.Title, &memo.Content)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return memo, errors.New("404. Not Found.")
+		}
+		return memo, err
+	}
 
 	return memo, nil
 }
 
-
 func InsertMemo(memo Memo) error {
-    if memo.Title == "" || memo.Content == "" {
+	if memo.Title == "" || memo.Content == "" {
 		return errors.New("400. Bad Request. Fields can't be empty.")
 	}
 
-    // insert values
+	// insert values
 	_, err := config.DB.Exec("INSERT INTO memos (title, content) VALUES (?, ?)", memo.Title, memo.Content)
 	if err != nil {
 		return err
@@ -73,22 +73,22 @@ func DeleteMemo(id int) error {
 }
 
 func AllMemo() ([]Memo, error) {
-    rows, err := config.DB.Query("select * from memos")
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	rows, err := config.DB.Query("select * from memos")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    memos := make([]Memo, 0)
-    for rows.Next() {
-        memo := Memo{}
-        err := rows.Scan(&memo.ID, &memo.Title, &memo.Content)
-        if err != nil {
-            return nil, err
-        }   
-        memos = append(memos, memo)
-    }
-    if err = rows.Err(); err != nil {
+	memos := make([]Memo, 0)
+	for rows.Next() {
+		memo := Memo{}
+		err := rows.Scan(&memo.ID, &memo.Title, &memo.Content)
+		if err != nil {
+			return nil, err
+		}
+		memos = append(memos, memo)
+	}
+	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 	return memos, nil

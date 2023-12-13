@@ -1,15 +1,17 @@
 package main
 
 import (
-    "log"
-    "net/http"
+	"log"
+	"net/http"
 
-    "github.com/workingscv/backend/internal/handler"
+	"github.com/workingscv/dev/backend/internal/handler"
 )
 
 func main() {
-    http.HandleFunc("/memo", handler.Memo)
-    http.HandleFunc("/memo/all", handler.GetAllMemos)
+	http.HandleFunc("/", handler.Index)
 
-    log.Fatal(http.ListenAndServe(":8080", nil))
+	http.HandleFunc("/memo", handler.Memo)
+	http.HandleFunc("/memo/all", handler.GetAllMemos)
+
+	log.Fatal(http.ListenAndServe(":80", nil))
 }
