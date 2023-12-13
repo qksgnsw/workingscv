@@ -13,8 +13,8 @@ func init() {
 	var err error
 
 	// DB, err = sql.Open("mysql", "root:password@tcp(127.0.0.1:13306)/testdb")
-	DB, err = sql.Open("mysql", 
-	"admin:password!@tcp(terraform-20231213065039601900000004.cvthkx2gfpla.ap-northeast-2.rds.amazonaws.com:3306)/testdb")
+	DB, err = sql.Open("mysql",
+		"admin:password!@tcp(terraform-2023121307505948820000000f.cvthkx2gfpla.ap-northeast-2.rds.amazonaws.com:3306)/testdb")
 	if err != nil {
 		panic(err)
 	}
@@ -45,10 +45,53 @@ func init() {
             conntent VARCHAR(100) NOT NULL
         )
     `
-    _, err = DB.Exec(createTableQuery)
-    if err != nil {
-        panic(err.Error())
-    }
+	_, err = DB.Exec(createTableQuery)
+	if err != nil {
+		panic(err.Error())
+	}
 
 	fmt.Println("Connected to the database.")
 }
+
+// Use this code snippet in your app.
+// If you need more information about configurations or implementing the sample code, visit the AWS docs:
+// https://aws.github.io/aws-sdk-go-v2/docs/getting-started/
+
+// import (
+// 	"context"
+// 	"log"
+
+// 	"github.com/aws/aws-sdk-go-v2/aws"
+// 	"github.com/aws/aws-sdk-go-v2/config"
+// 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+// )
+
+// func main() {
+// 	secretName := "test"
+// 	region := "ap-northeast-2"
+
+// 	config, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+
+// 	// Create Secrets Manager client
+// 	svc := secretsmanager.NewFromConfig(config)
+
+// 	input := &secretsmanager.GetSecretValueInput{
+// 		SecretId:     aws.String(secretName),
+// 		VersionStage: aws.String("AWSCURRENT"), // VersionStage defaults to AWSCURRENT if unspecified
+// 	}
+
+// 	result, err := svc.GetSecretValue(context.TODO(), input)
+// 	if err != nil {
+// 		// For a list of exceptions thrown, see
+// 		// https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+// 		log.Fatal(err.Error())
+// 	}
+
+// 	// Decrypts secret using the associated KMS key.
+// 	var secretString string = *result.SecretString
+
+// 	// Your code goes here.
+// }
