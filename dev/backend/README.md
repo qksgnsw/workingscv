@@ -7,4 +7,6 @@ go mod init github.com/workingscv/dev/backend
 go mod tidy -go=1.20
 # 빌드
 go build -o app cmd/backend/main.go
+
+DB_HOST={{ DB_HOST }} ./backend_{{ OS }}_{{ ARCH }}
 ```

@@ -44,6 +44,8 @@ resource "aws_launch_configuration" "as_templete" {
   security_groups = var.security_groups
 
   user_data_base64 = base64encode(local.user_data)
+
+  iam_instance_profile = var.iam_instance_profile
 }
 
 # ALB 설정
@@ -118,26 +120,40 @@ resource "aws_autoscaling_group" "asg" {
   target_group_arns    = [aws_lb_target_group.tg.arn] # ALB 리소스 이름 지정
 }
 
-# autoscaling plicy
-resource "aws_autoscaling_policy" "asg_policy" {
+resource "aws_autoscaling_policy" "cpu_scale_out_policy" {
   autoscaling_group_name = aws_autoscaling_group.asg.name
-  name                   = "${local.name}_asg_policy"
+  name                   = "${local.name}_cpu_scale_out_policy"
+  scaling_adjustment      = "1"   # 인스턴스 추가
+  adjustment_type         = "ChangeInCapacity"  # 인스턴스 개수 조정 방식
 
-  adjustment_type = "ChangeInCapacity" // 조정 유형 ChangeInCapacity, ExactCapacity, and PercentChangeInCapacity.
-  # scaling_adjustment      = 1  // 인스턴스 개수를 증가시킬 양 -> SimpleScaling에서만 지원
-  # cooldown                = 300  // 스케일링 이벤트 간의 대기 시간(초) -> SimpleScaling에서만 지원
+  metric_aggregation_type = "Average"
+  estimated_instance_warmup = 300
 
-  // CloudWatch 알람을 통해 CPU 사용률을 확인
-  metric_aggregation_type = "Average" // 지표 집계 유형
-  # "SimpleScaling", "StepScaling", "TargetTrackingScaling", or "PredictiveScaling"
-  policy_type = "TargetTrackingScaling" // 정책 유형
-
-  // CloudWatch 지표 설정
   target_tracking_configuration {
     predefined_metric_specification {
-      # ASGTotalCPUUtilization, ASGTotalNetworkIn, ASGTotalNetworkOut, or ALBTargetGroupRequestCount
-      predefined_metric_type = "ASGAverageCPUUtilization" // CloudWatch에서 제공하는 미리 정의된 CPU 사용률 지표
+      predefined_metric_type = "ASGAverageCPUUtilization"
     }
-    target_value = 50.0 // CPU 사용률 목표값 (50%)
+    target_value = 50  # 50%
   }
+
+  policy_type = "TargetTrackingScaling"
+}
+
+resource "aws_autoscaling_policy" "cpu_scale_in_policy" {
+  autoscaling_group_name = aws_autoscaling_group.asg.name
+  name                   = "${local.name}_cpu_scale_in_policy"
+  scaling_adjustment      = "-1"   # 인스턴스 삭제
+  adjustment_type         = "ChangeInCapacity"  # 인스턴스 개수 조정 방식
+
+  metric_aggregation_type = "Average"
+  estimated_instance_warmup = 300
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value = 40  # 40%
+  }
+
+  policy_type = "TargetTrackingScaling"
 }

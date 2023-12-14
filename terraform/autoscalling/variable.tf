@@ -64,3 +64,8 @@ variable "security_groups" {
     default = [ ]
 }
 
+variable "iam_instance_profile" {
+  type = string
+  default = ""
+}
+

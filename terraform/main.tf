@@ -57,14 +57,7 @@ locals {
   sed -i "s/^#PermitRootLogin yes/PermitRootLogin yes/g" /etc/ssh/sshd_config
   sed -i "s/^PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
   systemctl restart sshd
-  yum update -y &&
-  yum install golang.x86_64 git -y &&
-  git clone https://github.com/qksgnsw/workingscv.git &&
-  cd ./workingscv/dev/backend/ &&
-  rm -rf go.* &&
-  go mod init github.com/workingscv/dev/backend &&
-  go mod tidy
-  go run ./cmd/backend/main.go
+  yum update -y
   EOT
 
   tags = {
@@ -217,6 +210,9 @@ module "was" {
 
   image_id      = data.aws_ami.amazon_linux2.id
   instance_type = "t2.micro"
+
+  // secret manager role 추가
+  iam_instance_profile = module.db.role_name
 
   security_groups = [module.internal_ec2_sg.security_group_id]
 

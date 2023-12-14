@@ -10,4 +10,6 @@ credentials
 *tfstate*
 *.tfvars
 
-go.*
+go.mod
+go.sum
+dist

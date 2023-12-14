@@ -11,5 +11,7 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=password
       - MYSQL_DATABASE=testdb
+      - MYSQL_USER=admin
+      - MYSQL_PASSWORD=password!
     ports: # -p 옵션과 동일
-      - "13306:3306"
+      - "3306:3306"

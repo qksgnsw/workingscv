@@ -13,3 +13,7 @@ output "address" {
 output "id" {
     value = aws_db_instance.this.id
 }
+
+output "role_name" {
+    value = aws_iam_role.accessible_ec2_role.name
+}

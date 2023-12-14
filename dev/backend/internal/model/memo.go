@@ -3,6 +3,8 @@ package model
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"log"
 
 	"github.com/workingscv/dev/backend/config"
 )
@@ -11,6 +13,30 @@ type Memo struct {
 	ID      int    `json:"id"`
 	Title   string `json:"title"`
 	Content string `json:"content"`
+}
+
+func init() {
+
+	memos := []Memo{
+		{0, "Captain", "Baek"},
+		{0, "Agent1", "Lee"},
+		{0, "Agent2", "Ban"},
+		{0, "Agent3", "Park"},
+		{0, "Agent4", "Kang"},
+		{0, "Agent5", "Kim"},
+	}
+
+	insertQuery := "INSERT INTO memos (title, content) VALUES (?, ?)"
+
+	for _, v := range memos {
+		_, err := config.DB.Exec(insertQuery, v.Title, v.Content)
+
+		if err != nil {
+			log.Fatalf("Failed to insert memo: %v", err)
+		}
+	}
+
+	fmt.Println("Database setup and dummy data insertion successful!")
 }
 
 func OneMemo(id int) (Memo, error) {
