@@ -46,6 +46,10 @@ terraform destroy -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars
 
   - [x] NAT Gateway 생성
     - [x] EIP 생성
+    - [x] NAT Gateway가 있어야 외부에 트래픽을 보낼 수 있고,
+    - [x] 이 말은 외부의 서비스를 이용하던지,
+    - [x] 외부로 서비스를 하던지,
+    - [x] 반드시 필요함.
 
 ### 2. Servers
 ---
@@ -88,9 +92,9 @@ terraform destroy -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars
       - [ ] database subnet에 배포되어있는지 확인
     - [x] SSL 인증서
       - [x] ❗️ 기본 인증서로 구성 된 후 인증서를 갱신하므로 시간이 오래 걸림. 23/12/13 17:36 확인
-    - [ ] Secret manager를 활용한 자격증명 보안
-      - [ ] Secret manager로 키 생성
-    - [ ] was와의 연결 확인
+    - [x] Secret manager를 활용한 자격증명 보안
+      - [x] Secret manager로 키 생성
+    - [x] was와의 연결 확인
       - [x] cli 연결
       - [x] was와의 연결
     - [ ] 정책 및 세팅 설정
@@ -125,12 +129,12 @@ terraform destroy -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars
     - [ ] Cloud watch
     - [ ] Event Bridge
 
-  - [ ] Secret Manager
-    - [ ] DB와 접속할 키 생성
-    - [ ] EC2 인스턴스의 접근
-      - [ ] IAM Role 생성
-      - [ ] 정책 생성
-      - [ ] 해당 인스턴스에 적용
+  - [x] Secret Manager
+    - [x] DB와 접속할 키 생성
+    - [x] EC2 인스턴스의 접근
+      - [x] IAM Role 생성
+      - [x] 정책 생성
+      - [x] 해당 인스턴스에 적용
 
 ### 4. dev
 ```sh
@@ -176,3 +180,26 @@ cd ./workingscv
     - [x] Update
     - [x] Delete
     - [x] Get
+
+# 4. ❗️ 팁
+
+- DB 인증서
+  - 기본 인증서로 생성하면 인증서 만료 알림이 뜸.
+  - 기본 인증서로 구성 된 후 인증서를 갱신하므로 시간이 오래 걸림. 23/12/13 17:36 확인
+
+- IAM Role
+  - Role을 만들고
+  - 정책을 만들고
+  - Attachment 해주어야함.
+  - EC2에서 사용할 경우 인스턴스 프로파일 생성해주어야 함.
+
+- Secret Manager
+  - 삭제시 7-30일이 소요됨.
+  - 그러므로 최근에 삭제한 이름과 동일한 자격증명 이름으로는 생성이 안됨.
+
+- ALB와 HealthCheck, AutoScaling
+  - AWS Application Load Balancer(ALB)는 Health Check를 통해 Auto Scaling 그룹 내의 EC2 인스턴스의 상태를 확인
+  - 문제가 있는 경우 해당 인스턴스를 종료하고 새로운 인스턴스를 시작하여 대체함.
+  - 일반적으로 ALB는 Health Check를 사용하여 백엔드 서버(여기서는 Auto Scaling 그룹의 EC2 인스턴스)의 상태를 확인.
+  - 이상이 감지되면 해당 인스턴스로의 트래픽을 중지
+  - Auto Scaling 그룹이 설정된 경우 해당 인스턴스를 종료하고, 대신 트래픽을 다른 건강한 인스턴스로 라우팅함으로써 이루어 짐.

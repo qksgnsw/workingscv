@@ -118,12 +118,17 @@ resource "aws_autoscaling_group" "asg" {
   vpc_zone_identifier  = var.vpc_zone_identifier
   health_check_type    = "ELB"
   target_group_arns    = [aws_lb_target_group.tg.arn] # ALB 리소스 이름 지정
+
+  tag {
+    key                 = "Name"
+    value               = "${local.name}-instance"
+    propagate_at_launch = true
+  }
 }
 
 resource "aws_autoscaling_policy" "cpu_scale_out_policy" {
   autoscaling_group_name = aws_autoscaling_group.asg.name
   name                   = "${local.name}_cpu_scale_out_policy"
-  scaling_adjustment      = "1"   # 인스턴스 추가
   adjustment_type         = "ChangeInCapacity"  # 인스턴스 개수 조정 방식
 
   metric_aggregation_type = "Average"
@@ -134,25 +139,6 @@ resource "aws_autoscaling_policy" "cpu_scale_out_policy" {
       predefined_metric_type = "ASGAverageCPUUtilization"
     }
     target_value = 50  # 50%
-  }
-
-  policy_type = "TargetTrackingScaling"
-}
-
-resource "aws_autoscaling_policy" "cpu_scale_in_policy" {
-  autoscaling_group_name = aws_autoscaling_group.asg.name
-  name                   = "${local.name}_cpu_scale_in_policy"
-  scaling_adjustment      = "-1"   # 인스턴스 삭제
-  adjustment_type         = "ChangeInCapacity"  # 인스턴스 개수 조정 방식
-
-  metric_aggregation_type = "Average"
-  estimated_instance_warmup = 300
-
-  target_tracking_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ASGAverageCPUUtilization"
-    }
-    target_value = 40  # 40%
   }
 
   policy_type = "TargetTrackingScaling"

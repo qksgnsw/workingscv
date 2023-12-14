@@ -28,7 +28,7 @@ locals {
   region   = "ap-northeast-2"
   azs      = slice(data.aws_availability_zones.available.names, 0, 2)
 
-  domain       = var.domain
+  domain = var.domain
 
   bastion_user_data = <<-EOT
   #!/bin/bash
@@ -89,7 +89,7 @@ module "vpc" {
 module "certificate" {
   source = "./certificate"
 
-  domain       = local.domain
+  domain = local.domain
 }
 
 module "openvpn_sg" {
@@ -183,6 +183,9 @@ module "webserver" {
   image_id      = data.aws_ami.amazon_linux2.id
   instance_type = "t2.micro"
 
+  // secret manager role 추가
+  # iam_instance_profile = module.db.role_name
+
   security_groups = [module.internal_ec2_sg.security_group_id]
 
   user_data = base64encode(local.web_user_data)
@@ -212,7 +215,7 @@ module "was" {
   instance_type = "t2.micro"
 
   // secret manager role 추가
-  iam_instance_profile = module.db.role_name
+  iam_instance_profile = module.db.iam_instance_profile
 
   security_groups = [module.internal_ec2_sg.security_group_id]
 
@@ -271,10 +274,10 @@ module "internal_db_sg" {
 module "db" {
   source = "./db"
 
-  name          = "testdb"
+  name = "testdb"
   # subnet_groups = module.vpc.public_subnets
   subnet_groups = module.vpc.database_subnets
-  sg = [module.internal_db_sg.security_group_id]
+  sg            = [module.internal_db_sg.security_group_id]
 
   tags = merge(
     { Name : "${local.name}-db" },
@@ -325,10 +328,12 @@ output "info" {
     # }
 
     db = {
-      arn     = module.db.arn
-      domain  = module.db.domain
-      address = module.db.address
-      id      = module.db.id
+      arn       = module.db.arn
+      domain    = module.db.domain
+      address   = module.db.address
+      id        = module.db.id
+      iam_instance_profile = module.db.iam_instance_profile
+      secret_name = module.db.secret_name
     }
   }
 }

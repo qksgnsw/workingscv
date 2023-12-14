@@ -14,6 +14,10 @@ output "id" {
     value = aws_db_instance.this.id
 }
 
-output "role_name" {
-    value = aws_iam_role.accessible_ec2_role.name
+output "iam_instance_profile" {
+    value = aws_iam_instance_profile.this.name
+}
+
+output "secret_name" {
+    value = aws_secretsmanager_secret.this.name
 }

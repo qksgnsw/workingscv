@@ -31,7 +31,8 @@ resource "aws_db_instance" "this" {
 }
 
 resource "aws_secretsmanager_secret" "this" {
-  name = "DBCredentialsWorkingSCV" # Secrets Manager에서 사용할 비밀 정보 이름
+  # Secrets Manager에서 사용할 비밀 정보 이름 삭제하는데 7-30일 걸림;
+  name_prefix = "${var.name}_" 
 
   tags = var.tags
 }
@@ -49,7 +50,7 @@ resource "aws_secretsmanager_secret_version" "this" {
 
 # EC2 인스턴스에서 사용할 IAM 역할을 생성합니다.
 resource "aws_iam_role" "accessible_ec2_role" {
-  name = "ec2_role_for_secrets_manager_access"  # IAM 역할 이름
+  name = "${var.name}_accessible_ec2_role"  # IAM 역할 이름
 
   # EC2 인스턴스에서 해당 역할을 사용할 수 있도록 AssumeRole 정책을 설정합니다.
   assume_role_policy = jsonencode({
@@ -66,7 +67,7 @@ resource "aws_iam_role" "accessible_ec2_role" {
 
 # IAM 정책을 생성하여 Secrets Manager에 액세스할 수 있는 권한을 설정합니다.
 resource "aws_iam_policy" "secrets_manager_policy" {
-  name        = "secrets_manager_policy"  # 정책 이름
+  name        = "${var.name}_secrets_manager_policy"  # 정책 이름
   description = "Policy for accessing Secrets Manager"
 
   policy = jsonencode({
@@ -86,4 +87,10 @@ resource "aws_iam_policy" "secrets_manager_policy" {
 resource "aws_iam_role_policy_attachment" "secrets_manager_attachment" {
   role       = aws_iam_role.accessible_ec2_role.name
   policy_arn = aws_iam_policy.secrets_manager_policy.arn
+}
+
+# 인스턴스 프로파일은 EC2 인스턴스가 IAM 역할에 대한 접근 권한을 받을 수 있도록 해줍니다
+resource "aws_iam_instance_profile" "this" {
+  name = "${var.name}_secrets_manager_policy"
+  role = aws_iam_role.accessible_ec2_role.name
 }

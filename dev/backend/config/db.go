@@ -56,19 +56,23 @@ package config
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var DB *sql.DB
 
 func init() {
 	region := "ap-northeast-2"
-	secretName := "DBCredentialsWorkingSCV"
+	secretName := os.Getenv("SECRET_NAME")
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(region),
@@ -81,20 +85,21 @@ func init() {
 	secretsManagerClient := secretsmanager.NewFromConfig(cfg)
 
 	// Secrets Manager에서 비밀 정보 가져오기
-	secretValue, err := getSecret(secretsManagerClient, secretName)
+	secretString, err := getSecret(secretsManagerClient, secretName)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// 비밀 정보에서 데이터베이스 연결 정보 추출
-	dbUser := secretValue["username"]
-	dbPassword := secretValue["password"]
-	dbHost := secretValue["host"]
-	dbPort := secretValue["port"]
-	dbName := secretValue["dbname"]
+	dbUser := secretString["username"]
+	dbPassword := secretString["password"]
+	dbHost := secretString["host"]
+	dbName := secretString["dbname"]
 
 	// 데이터베이스 연결 문자열 생성
-	connStr := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", dbUser, dbPassword, dbHost, dbPort, dbName)
+	connStr := fmt.Sprintf("%s:%s@tcp(%s)/%s", dbUser, dbPassword, dbHost, dbName)
+
+	fmt.Println(connStr)
 
 	// 데이터베이스에 연결
 	DB, err = sql.Open("mysql", connStr)
@@ -108,11 +113,24 @@ func init() {
 		log.Fatal(err)
 	}
 
+	// IF NOT EXISTS는 테이블이 이미 존재하는 경우에는 생성하지 않도록 하는 옵션입니다.
+	createTableQuery := `
+        CREATE TABLE IF NOT EXISTS memos (
+            id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(100) NOT NULL,
+            content VARCHAR(100) NOT NULL
+        )
+    `
+	_, err = DB.Exec(createTableQuery)
+	if err != nil {
+		panic(err.Error())
+	}
+
 	fmt.Println("Connected to the database.")
 }
 
 // AWS Secrets Manager에서 비밀 정보 가져오는 함수
-func getSecret(client *secretsmanager.Client, secretName string) (map[string]string, error) {
+func getSecret(client *secretsmanager.Client, secretName string) (map[string]interface{}, error) {
 	input := &secretsmanager.GetSecretValueInput{
 		SecretId:     &secretName,
 		VersionStage: aws.String("AWSCURRENT"),
@@ -124,9 +142,9 @@ func getSecret(client *secretsmanager.Client, secretName string) (map[string]str
 	}
 
 	// 비밀 정보 파싱
-	secretString := make(map[string]string)
-	if result.SecretString != nil {
-		secretString["secret"] = *result.SecretString
+	var secretString map[string]interface{}
+	if err := json.Unmarshal([]byte(*result.SecretString), &secretString); err != nil {
+		return nil, err
 	}
 
 	return secretString, nil
