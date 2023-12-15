@@ -57,7 +57,12 @@ locals {
   sed -i "s/^#PermitRootLogin yes/PermitRootLogin yes/g" /etc/ssh/sshd_config
   sed -i "s/^PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
   systemctl restart sshd
+  # ALB 핼스체크로 인해 인스턴스 종료 방지를 위한 웹서버 실행.
   yum update -y
+  yum install -y httpd.x86_64
+  systemctl start httpd.service
+  systemctl enable httpd.service
+  echo "<h1>Here is Backend => $(hostname -f)</h1>" > /var/www/html/index.html
   EOT
 
   tags = {
@@ -72,6 +77,7 @@ module "vpc" {
   name = local.name
   cidr = local.vpc_cidr
 
+  # t2.micro 생성을 위한 가용 영역 고정 셋업
   azs              = ["${local.region}a", "${local.region}c"]
   public_subnets   = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k)]
   private_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 100)]
@@ -184,6 +190,7 @@ module "webserver" {
   instance_type = "t2.micro"
 
   // secret manager role 추가
+  // 해당 인스턴스들은 RDS 접근이 필요 없음.
   # iam_instance_profile = module.db.role_name
 
   security_groups = [module.internal_ec2_sg.security_group_id]
@@ -288,6 +295,10 @@ module "db" {
 
 output "info" {
   value = {
+    setup = {
+      azs = local.azs
+    }
+
     # vpc = {
     #   azs                         = module.vpc.azs,
     #   vpc_cidr_block              = module.vpc.vpc_cidr_block,
@@ -327,13 +338,13 @@ output "info" {
     #   min_size           = module.was.min_size
     # }
 
-    db = {
-      arn       = module.db.arn
-      domain    = module.db.domain
-      address   = module.db.address
-      id        = module.db.id
-      iam_instance_profile = module.db.iam_instance_profile
-      secret_name = module.db.secret_name
-    }
+    # db = {
+    #   arn       = module.db.arn
+    #   domain    = module.db.domain
+    #   address   = module.db.address
+    #   id        = module.db.id
+    #   iam_instance_profile = module.db.iam_instance_profile
+    #   secret_name = module.db.secret_name
+    # }
   }
 }

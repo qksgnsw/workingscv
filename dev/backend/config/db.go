@@ -1,58 +1,5 @@
 package config
 
-// import (
-// 	"database/sql"
-// 	"fmt"
-// 	"os"
-
-// 	_ "github.com/go-sql-driver/mysql"
-// )
-
-// var DB *sql.DB
-
-// func init() {
-// 	var err error
-
-// 	// 외부 소스로부터 데이터베이스 연결 정보를 가져옵니다.
-// 	// dbType := os.Getenv("DB_TYPE")       // 데이터베이스 유형
-// 	// dbUser := os.Getenv("DB_USER")       // 사용자 이름
-// 	// dbPassword := os.Getenv("DB_PASS")   // 비밀번호
-// 	// dbHost := os.Getenv("DB_HOST")       // 호스트
-// 	// dbPort := os.Getenv("DB_PORT")       // 포트
-// 	// dbName := os.Getenv("DB_NAME")       // 데이터베이스 이름
-// 	dbType := "mysql"              // 데이터베이스 유형
-// 	dbUser := "admin"              // 사용자 이름
-// 	dbPassword := "password!"      // 비밀번호
-// 	dbPort := "3306"               // 포트
-// 	dbName := "testdb"             // 데이터베이스 이름
-// 	dbHost := os.Getenv("DB_HOST") // 호스트
-
-// 	// 데이터베이스 연결 문자열 생성
-// 	connStr := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", dbUser, dbPassword, dbHost, dbPort, dbName)
-
-// 	// 데이터베이스에 연결
-// 	DB, err = sql.Open(dbType, connStr)
-
-// 	if err = DB.Ping(); err != nil {
-// 		panic(err)
-// 	}
-
-// 	// IF NOT EXISTS는 테이블이 이미 존재하는 경우에는 생성하지 않도록 하는 옵션입니다.
-// 	createTableQuery := `
-//         CREATE TABLE IF NOT EXISTS memos (
-//             id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-//             title VARCHAR(100) NOT NULL,
-//             content VARCHAR(100) NOT NULL
-//         )
-//     `
-// 	_, err = DB.Exec(createTableQuery)
-// 	if err != nil {
-// 		panic(err.Error())
-// 	}
-
-// 	fmt.Println("Connected to the database.")
-// }
-
 import (
 	"context"
 	"database/sql"
@@ -64,40 +11,57 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
-
 	_ "github.com/go-sql-driver/mysql"
 )
 
 var DB *sql.DB
 
 func init() {
-	region := "ap-northeast-2"
-	secretName := os.Getenv("SECRET_NAME")
+	var connStr string
+	var err error
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(region),
-	)
-	if err != nil {
-		log.Fatal(err)
+	if os.Getenv("ENV") == "prod" {
+		region := "ap-northeast-2"
+		secretName := os.Getenv("SECRET_NAME")
+
+		if secretName == "" {
+			panic("Require SECRET_NAME.")
+		}
+
+		cfg, err := config.LoadDefaultConfig(context.TODO(),
+			config.WithRegion(region),
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// AWS Secrets Manager 클라이언트 생성
+		secretsManagerClient := secretsmanager.NewFromConfig(cfg)
+
+		// Secrets Manager에서 비밀 정보 가져오기
+		secretString, err := getSecret(secretsManagerClient, secretName)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// 비밀 정보에서 데이터베이스 연결 정보 추출
+		dbUser := secretString["username"]
+		dbPassword := secretString["password"]
+		dbHost := secretString["host"]
+		dbName := secretString["dbname"]
+
+		// 데이터베이스 연결 문자열 생성
+		connStr = fmt.Sprintf("%s:%s@tcp(%s)/%s", dbUser, dbPassword, dbHost, dbName)
+	} else {
+		dbUser := "admin"         // 사용자 이름
+		dbPassword := "password!" // 비밀번호
+		dbPort := "3306"          // 포트
+		dbName := "testdb"        // 데이터베이스 이름
+		dbHost := "localhost"     // 호스트
+
+		// 데이터베이스 연결 문자열 생성
+		connStr = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
-
-	// AWS Secrets Manager 클라이언트 생성
-	secretsManagerClient := secretsmanager.NewFromConfig(cfg)
-
-	// Secrets Manager에서 비밀 정보 가져오기
-	secretString, err := getSecret(secretsManagerClient, secretName)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// 비밀 정보에서 데이터베이스 연결 정보 추출
-	dbUser := secretString["username"]
-	dbPassword := secretString["password"]
-	dbHost := secretString["host"]
-	dbName := secretString["dbname"]
-
-	// 데이터베이스 연결 문자열 생성
-	connStr := fmt.Sprintf("%s:%s@tcp(%s)/%s", dbUser, dbPassword, dbHost, dbName)
 
 	fmt.Println(connStr)
 

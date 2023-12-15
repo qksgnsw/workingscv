@@ -21,8 +21,11 @@ resource "aws_db_instance" "this" {
   # 퍼블릭 엑세스 추가
   # publicly_accessible = true
 
-  # Secret manager
+  # Secret manager -> 비밀번호를 직접 설정 여부 옵션
   # manage_master_user_password = true
+
+  # multi_az 인스턴스 기능
+  multi_az = true
 
   # 인증서 옵션
   ca_cert_identifier = "rds-ca-rsa4096-g1"

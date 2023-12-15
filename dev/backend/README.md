@@ -11,7 +11,7 @@ go build -o app cmd/backend/main.go
 # secret manager 이전
 DB_HOST={{ DB_HOST }} ./backend_{{ OS }}_{{ ARCH }}
 #  secret manager 이후
-SECRET_NAME={{ DBCredentials_SECRET_NAME }} ./backend_{{ OS }}_{{ ARCH }}
+ENV=prod SECRET_NAME={{ DBCredentials_SECRET_NAME }} ./backend_{{ OS }}_{{ ARCH }}
 ```
 
-SECRET_NAME=testdb_20231214033021477700000001 ./backend_linux_x86_64
+ENV=prod SECRET_NAME=testdb_20231215020006620700000002 ./backend_linux_x86_64

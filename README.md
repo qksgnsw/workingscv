@@ -18,7 +18,11 @@ terraform plan
 
 terraform apply -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars -auto-approve
 
-terraform destroy -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars
+# terraform apply -var-file=test.tfvars -auto-approve
+
+terraform destroy -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars -auto-approve
+
+# terraform destroy -var-file=test.tfvars -auto-approve
 ```
 
 ### ✅ 1. Infra
@@ -97,8 +101,8 @@ terraform destroy -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars
     - [x] was와의 연결 확인
       - [x] cli 연결
       - [x] was와의 연결
-    - [ ] 정책 및 세팅 설정
-      - [ ] Master-slave 구현
+    - [ ] Multi-az 인스턴스
+      - [ ] 
 
 ### 3. Services
 ---
@@ -171,6 +175,7 @@ cd ./workingscv
       - [x] 간편한 빌드를 위해 build.sh 추가
       - [x] 운영체제별 빌드
       - [x] 아키택쳐별 빌드
+    - [x] 환경에 따른 DB 동적 연결
     - [ ] 배포
       - [ ] autoscaling 템플릿에서 다운 받아 사용 할 수 있는 방안
         - [ ] 호스팅 사이트 업로드
@@ -203,3 +208,9 @@ cd ./workingscv
   - 일반적으로 ALB는 Health Check를 사용하여 백엔드 서버(여기서는 Auto Scaling 그룹의 EC2 인스턴스)의 상태를 확인.
   - 이상이 감지되면 해당 인스턴스로의 트래픽을 중지
   - Auto Scaling 그룹이 설정된 경우 해당 인스턴스를 종료하고, 대신 트래픽을 다른 건강한 인스턴스로 라우팅함으로써 이루어 짐.
+
+- DB Multi-az Instance
+  - 현재 구성도는 Primary와 Standby가 있는 구성이므로
+  - Multi-az Cluster가 필요하다고 판단되지는 않음.
+  - 현재 구성도에 맞는 서비스는 Multi-az Instance로 판단됨.
+  - 테스트해본 결과 약 인스턴스 생성시 15분 정도 소요(인증서 갱신 및 해당 기능 추가)

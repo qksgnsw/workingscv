@@ -17,26 +17,34 @@ type Memo struct {
 
 func init() {
 
-	memos := []Memo{
-		{0, "Captain", "Baek"},
-		{0, "Agent1", "Lee"},
-		{0, "Agent2", "Ban"},
-		{0, "Agent3", "Park"},
-		{0, "Agent4", "Kang"},
-		{0, "Agent5", "Kim"},
+	exists, err := HasDataInTable()
+
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	insertQuery := "INSERT INTO memos (title, content) VALUES (?, ?)"
-
-	for _, v := range memos {
-		_, err := config.DB.Exec(insertQuery, v.Title, v.Content)
-
-		if err != nil {
-			log.Fatalf("Failed to insert memo: %v", err)
+	if !exists {
+		memos := []Memo{
+			{0, "Captain", "Baek"},
+			{0, "Agent1", "Lee"},
+			{0, "Agent2", "Ban"},
+			{0, "Agent3", "Park"},
+			{0, "Agent4", "Kang"},
+			{0, "Agent5", "Kim"},
 		}
-	}
 
-	fmt.Println("Database setup and dummy data insertion successful!")
+		insertQuery := "INSERT INTO memos (title, content) VALUES (?, ?)"
+
+		for _, v := range memos {
+			_, err := config.DB.Exec(insertQuery, v.Title, v.Content)
+
+			if err != nil {
+				log.Fatalf("Failed to insert memo: %v", err)
+			}
+		}
+
+		fmt.Println("Database setup and dummy data insertion successful!")
+	}
 }
 
 func OneMemo(id int) (Memo, error) {
@@ -118,4 +126,14 @@ func AllMemo() ([]Memo, error) {
 		return nil, err
 	}
 	return memos, nil
+}
+
+func HasDataInTable() (bool, error) {
+	query := "SELECT EXISTS(SELECT 1 FROM memos LIMIT 1)"
+	var exists bool
+	err := config.DB.QueryRow(query).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
 }
