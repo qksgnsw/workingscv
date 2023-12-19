@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+# Parameters(매개변수) 섹션: 템플릿 실행 시 입력받을 값들을 정의합니다.
+Parameters:
+  BudgetNameParameter:
+    Type: String
+    Default: MyDefaultBudget
+    Description: The name for your budget. Defaults to MyDefaultBudget.
+
+  BudgetValueParameter:
+    Type: Number
+    Description: The value of your monthly budget.
+
+  EmailParameter:
+    Type: String
+    Description: The e-mail to send budget alerts to.
+
+# Resources(리소스) 섹션: AWS 리소스를 정의합니다.
+Resources:
+  BasicBudget:
+    Type: "AWS::Budgets::Budget"  # AWS Budgets 서비스를 이용하여 예산을 생성합니다.
+    Properties:
+      Budget:  # 예산에 대한 정보를 정의합니다.
+        BudgetName:  # 예산 이름
+          Ref: BudgetNameParameter  # BudgetNameParameter 매개변수의 값을 사용합니다.
+        BudgetLimit:  # 예산 한도
+          Amount:
+            Ref: BudgetValueParameter  # BudgetValueParameter 매개변수의 값을 사용합니다.
+          Unit: USD  # 화폐 단위 (미국 달러)
+        TimeUnit: MONTHLY  # 시간 단위 (월간)
+        BudgetType: COST  # 예산 유형 (비용)
+      NotificationsWithSubscribers:  # 예산 초과 알림과 구독자 정보를 정의합니다.
+        - Notification:  # 첫 번째 알림 설정
+            NotificationType: ACTUAL  # 알림 유형 (실제 값 기준)
+            ComparisonOperator: GREATER_THAN  # 비교 연산자 (초과 시)
+            Threshold: 50  # 임계값 (50% 초과)
+          Subscribers:
+          - SubscriptionType: EMAIL  # 구독자 유형 (이메일)
+            Address:
+              Ref: EmailParameter  # EmailParameter 매개변수의 값을 사용합니다.
+        - Notification:  # 두 번째 알림 설정
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 75
+          Subscribers:
+          - SubscriptionType: EMAIL
+            Address:
+              Ref: EmailParameter

@@ -90,7 +90,7 @@ terraform destroy -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars -auto-approve
               - [ ] Scale In
               - [ ] Scale Out
 
-  - [ ] DB
+  - [x] DB : 생성과 종료의 시간이 매우 오래 걸림
     - [x] 보안 그룹
       - [ ] 퍼블릭 공개가 되어있는지 확인했는가?
       - [ ] database subnet에 배포되어있는지 확인
@@ -101,8 +101,7 @@ terraform destroy -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars -auto-approve
     - [x] was와의 연결 확인
       - [x] cli 연결
       - [x] was와의 연결
-    - [ ] Multi-az 인스턴스
-      - [ ] 
+    - [x] Multi-az 인스턴스      
 
 ### 3. Services
 ---
@@ -139,6 +138,15 @@ terraform destroy -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars -auto-approve
       - [x] IAM Role 생성
       - [x] 정책 생성
       - [x] 해당 인스턴스에 적용
+
+  - [ ] CloudWatch
+
+  - [x] Secret Manager
+
+  - [x] AWS Budgets
+    - [x] 비용, 사용량 관리 서비스
+    - [x] 예산 설정
+    - [x] 알람 설정
 
 ### 4. dev
 ```sh
@@ -214,3 +222,6 @@ cd ./workingscv
   - Multi-az Cluster가 필요하다고 판단되지는 않음.
   - 현재 구성도에 맞는 서비스는 Multi-az Instance로 판단됨.
   - 테스트해본 결과 약 인스턴스 생성시 15분 정도 소요(인증서 갱신 및 해당 기능 추가)
+
+- CloudFormation 소스 추가
+  - AWS Budgets을 활용한 비용 모니터링
