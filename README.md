@@ -70,25 +70,25 @@ terraform destroy -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars -auto-approve
     - [x] ALB
         - [x] 보안그룹
         - [x] SSL
-        - [ ] Autoscaling
-            - [ ] Templete
-              - [ ] 프론트앤드 앱
-            - [ ] policy
-              - [ ] Scale In
-              - [ ] Scale Out
+        - [x] Autoscaling
+            - [x] Templete
+              - [x] 프론트앤드 앱
+            - [x] policy
+              - [x] Scale In
+              - [x] Scale Out
 
   - [ ] WAS
     - [x] 보안 그룹 
     - [x] ALB
         - [x] 보안그룹
         - [x] SSL
-        - [ ] Autoscaling
-            - [ ] Templete
-              - [ ] 앱
-                - [ ] DB 연결
-            - [ ] policy
-              - [ ] Scale In
-              - [ ] Scale Out
+        - [x] Autoscaling
+            - [x] Templete
+              - [x] 앱
+                - [x] DB 연결
+            - [x] policy
+              - [x] Scale In
+              - [x] Scale Out
 
   - [x] DB : 생성과 종료의 시간이 매우 오래 걸림
     - [x] 보안 그룹
@@ -143,10 +143,20 @@ terraform destroy -var-file={{ YOUR_ENV_FILE_NAME }}.tfvars -auto-approve
 
   - [x] Secret Manager
 
-  - [x] AWS Budgets
+  - [x] ⭕️ AWS Budgets
     - [x] 비용, 사용량 관리 서비스
     - [x] 예산 설정
     - [x] 알람 설정
+  
+  - [x] ⭕️ AWS WAF
+    - [x] [Automation for AWS WAF](https://docs.aws.amazon.com/ko_kr/solutions/latest/security-automations-for-aws-waf/solution-overview.html)
+    - [x] CloudFormation으로 배포
+    - [x] ELB 로깅
+      - [x] aws console에서 환경 설정하기
+        - [x] s3 버킷
+        - [x] s3 권한 설정
+      - [ ] 소스화 하기
+    - [ ] 주석달기
 
 ### 4. dev
 ```sh
@@ -225,3 +235,4 @@ cd ./workingscv
 
 - CloudFormation 소스 추가
   - AWS Budgets을 활용한 비용 모니터링
+  - AWS Automation for AWS WAF
