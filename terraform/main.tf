@@ -1,5 +1,5 @@
 provider "aws" {
-
+  region = var.region
 }
 
 data "aws_availability_zones" "available" {
@@ -25,7 +25,6 @@ locals {
   name     = "workingSCV"
   env      = "Dev"
   vpc_cidr = "10.0.0.0/16"
-  region   = "ap-northeast-2"
   azs      = slice(data.aws_availability_zones.available.names, 0, 2)
 
   domain = var.domain
@@ -77,8 +76,7 @@ module "vpc" {
   name = local.name
   cidr = local.vpc_cidr
 
-  # t2.micro 생성을 위한 가용 영역 고정 셋업
-  azs              = ["${local.region}a", "${local.region}c"]
+  azs             = local.azs
   public_subnets   = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k)]
   private_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 100)]
   database_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 200)]
@@ -130,7 +128,7 @@ module "openvpnEC2" {
 
   ami                         = data.aws_ami.amazon_linux2.id
   subnet_id                   = module.vpc.public_subnets[count.index]
-  instance_type               = "t2.micro"
+  instance_type               = "t3.micro"
   monitoring                  = true
   associate_public_ip_address = true
 
@@ -177,9 +175,9 @@ module "webserver" {
   name = "${local.name}-webserver"
   env  = local.env
 
-  min_size         = 1
-  max_size         = 2
-  desired_capacity = 1
+  min_size         = var.isPrimary ? 2 : 1
+  max_size         = var.isPrimary ? 4 : 2
+  desired_capacity = var.isPrimary ? 2 : 1
 
   vpc_id              = module.vpc.vpc_id
   alb_subnets         = [for k, v in module.vpc.public_subnets : v]
@@ -187,7 +185,7 @@ module "webserver" {
   certificate_arn     = module.certificate.arn
 
   image_id      = data.aws_ami.amazon_linux2.id
-  instance_type = "t2.micro"
+  instance_type = "t3.micro"
 
   // secret manager role 추가
   // 해당 인스턴스들은 RDS 접근이 필요 없음.
@@ -209,9 +207,9 @@ module "was" {
   name = "${local.name}-was"
   env  = local.env
 
-  min_size         = 1
-  max_size         = 2
-  desired_capacity = 1
+  min_size         = var.isPrimary ? 2 : 1
+  max_size         = var.isPrimary ? 4 : 2
+  desired_capacity = var.isPrimary ? 2 : 1
 
   vpc_id              = module.vpc.vpc_id
   alb_subnets         = [for k, v in module.vpc.public_subnets : v]
@@ -219,7 +217,7 @@ module "was" {
   certificate_arn     = module.certificate.arn
 
   image_id      = data.aws_ami.amazon_linux2.id
-  instance_type = "t2.micro"
+  instance_type = "t3.micro"
 
   // secret manager role 추가
   iam_instance_profile = module.db.iam_instance_profile
@@ -265,8 +263,18 @@ module "internal_db_sg" {
 
   ingress_cidr_blocks = [
     local.vpc_cidr,
+    # 
     # "0.0.0.0/0" # test
   ]
+
+  ingress_with_source_security_group_id = [
+     {
+      rule                     = "mysql-tcp"
+      source_security_group_id = module.internal_ec2_sg.security_group_id
+    }
+    
+  ]
+
   ingress_rules = [
     "all-icmp",
     "mysql-tcp"
@@ -278,19 +286,18 @@ module "internal_db_sg" {
   )
 }
 
-module "db" {
-  source = "./db"
+# module "db" {
+#   source = "./db"
 
-  name = "testdb"
-  # subnet_groups = module.vpc.public_subnets
-  subnet_groups = module.vpc.database_subnets
-  sg            = [module.internal_db_sg.security_group_id]
+#   name = "testdb"
+#   subnet_groups = module.vpc.database_subnets
+#   sg            = [module.internal_db_sg.security_group_id]
 
-  tags = merge(
-    { Name : "${local.name}-db" },
-    local.tags
-  )
-}
+#   tags = merge(
+#     { Name : "${local.name}-db" },
+#     local.tags
+#   )
+# }
 
 
 output "info" {

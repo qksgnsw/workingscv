@@ -1,7 +1,7 @@
 # Working SCV Project
 
 ### Architecture
-![](./images/architecture01.png)
+![](./images/team_project3-2.drawio.png)
 
 - [ ] 서울리전
   - [ ] 배포와 테스트를 위한 인프라 구축 가능성.
@@ -11,6 +11,12 @@
 
 ### 실행
 - .tfvars 파일 만들어 참조해야 함.
+```
+# {{ YOUR_ENV_FILE_NAME }}.tfvars
+region = YOUR_REGION
+domain = YOUR_DOMAIN_NAME
+isPrimary = true || false
+```
 ```sh
 terraform init
 terraform validate

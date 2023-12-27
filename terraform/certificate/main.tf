@@ -7,6 +7,7 @@ resource "aws_acm_certificate" "this" {
     "*.${var.domain}"
   ]
 
+  
   lifecycle {
     create_before_destroy = true
   }
