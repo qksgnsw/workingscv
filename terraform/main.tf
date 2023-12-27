@@ -28,6 +28,7 @@ locals {
   azs      = slice(data.aws_availability_zones.available.names, 0, 2)
 
   domain = var.domain
+  isPrimary = var.isPrimary
 
   bastion_user_data = <<-EOT
   #!/bin/bash
@@ -56,7 +57,6 @@ locals {
   sed -i "s/^#PermitRootLogin yes/PermitRootLogin yes/g" /etc/ssh/sshd_config
   sed -i "s/^PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
   systemctl restart sshd
-  # ALB 핼스체크로 인해 인스턴스 종료 방지를 위한 웹서버 실행.
   yum update -y
   yum install -y httpd.x86_64
   systemctl start httpd.service
@@ -76,8 +76,7 @@ module "vpc" {
   name = local.name
   cidr = local.vpc_cidr
 
-  # azs              = local.azs
-  azs = ["${var.region}a","${var.region}c"]
+  azs              = local.azs
   public_subnets   = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k)]
   private_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 100)]
   database_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 200)]
@@ -129,7 +128,7 @@ module "openvpnEC2" {
 
   ami                         = data.aws_ami.amazon_linux2.id
   subnet_id                   = module.vpc.public_subnets[count.index]
-  instance_type               = "t2.micro"
+  instance_type               = "t3.micro"
   monitoring                  = true
   associate_public_ip_address = true
 
@@ -176,9 +175,9 @@ module "webserver" {
   name = "${local.name}-webserver"
   env  = local.env
 
-  min_size         = var.isPrimary ? 2 : 1
-  max_size         = var.isPrimary ? 4 : 2
-  desired_capacity = var.isPrimary ? 2 : 1
+  min_size             = local.isPrimary ? 2 : 1
+  max_size             = local.isPrimary ? 4 : 2
+  desired_capacity     = local.isPrimary ? 2 : 1
 
   vpc_id              = module.vpc.vpc_id
   alb_subnets         = [for k, v in module.vpc.public_subnets : v]
@@ -186,7 +185,7 @@ module "webserver" {
   certificate_arn     = module.certificate.arn
 
   image_id      = data.aws_ami.amazon_linux2.id
-  instance_type = "t2.micro"
+  instance_type = "t3.micro"
 
   // secret manager role 추가
   // 해당 인스턴스들은 RDS 접근이 필요 없음.
@@ -208,9 +207,9 @@ module "was" {
   name = "${local.name}-was"
   env  = local.env
 
-  min_size         = var.isPrimary ? 2 : 1
-  max_size         = var.isPrimary ? 4 : 2
-  desired_capacity = var.isPrimary ? 2 : 1
+  min_size             = local.isPrimary ? 2 : 1
+  max_size             = local.isPrimary ? 4 : 2
+  desired_capacity     = local.isPrimary ? 2 : 1
 
   vpc_id              = module.vpc.vpc_id
   alb_subnets         = [for k, v in module.vpc.public_subnets : v]
@@ -218,10 +217,10 @@ module "was" {
   certificate_arn     = module.certificate.arn
 
   image_id      = data.aws_ami.amazon_linux2.id
-  instance_type = "t2.micro"
+  instance_type = "t3.micro"
 
   // secret manager role 추가
-  # iam_instance_profile = module.db.iam_instance_profile
+  iam_instance_profile = module.db.iam_instance_profile
 
   security_groups = [module.internal_ec2_sg.security_group_id]
 
@@ -264,7 +263,6 @@ module "internal_db_sg" {
 
   ingress_cidr_blocks = [
     local.vpc_cidr,
-    # 
     # "0.0.0.0/0" # test
   ]
 
@@ -273,7 +271,6 @@ module "internal_db_sg" {
       rule                     = "mysql-tcp"
       source_security_group_id = module.internal_ec2_sg.security_group_id
     }
-
   ]
 
   ingress_rules = [
@@ -287,18 +284,18 @@ module "internal_db_sg" {
   )
 }
 
-# module "db" {
-#   source = "./db"
+module "db" {
+  source = "./db"
 
-#   name = "testdb"
-#   subnet_groups = module.vpc.database_subnets
-#   sg            = [module.internal_db_sg.security_group_id]
+  name = "testdb"
+  subnet_groups = module.vpc.database_subnets
+  sg            = [module.internal_db_sg.security_group_id]
 
-#   tags = merge(
-#     { Name : "${local.name}-db" },
-#     local.tags
-#   )
-# }
+  tags = merge(
+    { Name : "${local.name}-db" },
+    local.tags
+  )
+}
 
 
 output "info" {
