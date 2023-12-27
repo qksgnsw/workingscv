@@ -76,7 +76,8 @@ module "vpc" {
   name = local.name
   cidr = local.vpc_cidr
 
-  azs             = local.azs
+  # azs              = local.azs
+  azs = ["${var.region}a","${var.region}c"]
   public_subnets   = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k)]
   private_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 100)]
   database_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 200)]
@@ -128,7 +129,7 @@ module "openvpnEC2" {
 
   ami                         = data.aws_ami.amazon_linux2.id
   subnet_id                   = module.vpc.public_subnets[count.index]
-  instance_type               = "t3.micro"
+  instance_type               = "t2.micro"
   monitoring                  = true
   associate_public_ip_address = true
 
@@ -185,7 +186,7 @@ module "webserver" {
   certificate_arn     = module.certificate.arn
 
   image_id      = data.aws_ami.amazon_linux2.id
-  instance_type = "t3.micro"
+  instance_type = "t2.micro"
 
   // secret manager role 추가
   // 해당 인스턴스들은 RDS 접근이 필요 없음.
@@ -217,10 +218,10 @@ module "was" {
   certificate_arn     = module.certificate.arn
 
   image_id      = data.aws_ami.amazon_linux2.id
-  instance_type = "t3.micro"
+  instance_type = "t2.micro"
 
   // secret manager role 추가
-  iam_instance_profile = module.db.iam_instance_profile
+  # iam_instance_profile = module.db.iam_instance_profile
 
   security_groups = [module.internal_ec2_sg.security_group_id]
 
@@ -268,11 +269,11 @@ module "internal_db_sg" {
   ]
 
   ingress_with_source_security_group_id = [
-     {
+    {
       rule                     = "mysql-tcp"
       source_security_group_id = module.internal_ec2_sg.security_group_id
     }
-    
+
   ]
 
   ingress_rules = [
