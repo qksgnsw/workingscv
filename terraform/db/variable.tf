@@ -13,11 +13,11 @@ variable "username" {
   sensitive = true
 }
 
-variable "password" {
-  type = string
-  default = "password!"
-  sensitive = true
-}
+# variable "password" {
+#   type = string
+#   default = "password!"
+#   sensitive = true
+# }
 
 variable "tags" {
   type = map(string)

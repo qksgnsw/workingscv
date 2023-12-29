@@ -285,6 +285,7 @@ module "internal_db_sg" {
 }
 
 module "db" {
+  count = local.isPrimary ? 1 : 0
   source = "./db"
 
   name = "testdb"

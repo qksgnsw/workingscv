@@ -242,3 +242,7 @@ cd ./workingscv
 - CloudFormation 소스 추가
   - AWS Budgets을 활용한 비용 모니터링
   - AWS Automation for AWS WAF
+
+- [Multi Region DR for RDS](https://aws.amazon.com/blogs/database/use-cross-region-read-replicas-with-amazon-relational-database-service-for-sql-server)
+  - 
+  

@@ -3,6 +3,10 @@ resource "aws_db_subnet_group" "this" {
   subnet_ids = var.subnet_groups # RDS가 위치할 서브넷 ID 입력
 }
 
+resource "aws_kms_key" "this" {
+  description = "${var.name} KMS Key"
+}
+
 resource "aws_db_instance" "this" {
   db_subnet_group_name = aws_db_subnet_group.this.name
 
@@ -13,7 +17,7 @@ resource "aws_db_instance" "this" {
   instance_class       = "db.t3.micro"
   username             = var.username # admin
   # Secret manager 사용하려면 해당 옵션이 없어야함.
-  password             = var.password # password!
+  # password             = var.password # password!
   parameter_group_name = "default.mysql5.7"
   skip_final_snapshot  = true
   vpc_security_group_ids = var.sg
@@ -22,7 +26,10 @@ resource "aws_db_instance" "this" {
   # publicly_accessible = true
 
   # Secret manager -> 비밀번호를 직접 설정 여부 옵션
-  # manage_master_user_password = true
+  manage_master_user_password = true
+
+  # KMS 
+  master_user_secret_kms_key_id = aws_kms_key.this.key_id
 
   # multi_az 인스턴스 기능
   multi_az = true
