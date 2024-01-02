@@ -92,57 +92,57 @@ module "vpc" {
   )
 }
 
-module "certificate" {
-  source = "../modules/certificate"
+# module "certificate" {
+#   source = "../modules/certificate"
 
-  domain = local.domain
-}
+#   domain = local.domain
+# }
 
-module "openvpn_sg" {
-  source = "terraform-aws-modules/security-group/aws"
+# module "openvpn_sg" {
+#   source = "terraform-aws-modules/security-group/aws"
 
-  name        = "openvpn_sg"
-  description = "This is an openvpn_sg."
-  vpc_id      = module.vpc.vpc_id
+#   name        = "openvpn_sg"
+#   description = "This is an openvpn_sg."
+#   vpc_id      = module.vpc.vpc_id
 
-  egress_rules = [
-    "all-icmp",
-    "ssh-tcp"
-  ]
+#   egress_rules = [
+#     "all-icmp",
+#     "ssh-tcp"
+#   ]
 
-  ingress_cidr_blocks = ["0.0.0.0/0"]
+#   ingress_cidr_blocks = ["0.0.0.0/0"]
 
-  ingress_rules = [
-    "all-icmp",
-    "ssh-tcp"
-  ]
+#   ingress_rules = [
+#     "all-icmp",
+#     "ssh-tcp"
+#   ]
 
-  tags = merge(
-    { Name : "${local.name}-openvpn_sg" },
-    local.tags
-  )
-}
+#   tags = merge(
+#     { Name : "${local.name}-openvpn_sg" },
+#     local.tags
+#   )
+# }
 
-module "openvpnEC2" {
-  source = "terraform-aws-modules/ec2-instance/aws"
+# module "openvpnEC2" {
+#   source = "terraform-aws-modules/ec2-instance/aws"
 
-  count = local.isPrimary ? 2 : 1
+#   count = local.isPrimary ? 2 : 1
 
-  ami                         = data.aws_ami.amazon_linux2.id
-  subnet_id                   = module.vpc.public_subnets[count.index]
-  instance_type               = "t3.micro"
-  monitoring                  = true
-  associate_public_ip_address = true
+#   ami                         = data.aws_ami.amazon_linux2.id
+#   subnet_id                   = module.vpc.public_subnets[count.index]
+#   instance_type               = "t3.micro"
+#   monitoring                  = true
+#   associate_public_ip_address = true
 
-  vpc_security_group_ids = [module.openvpn_sg.security_group_id]
+#   vpc_security_group_ids = [module.openvpn_sg.security_group_id]
 
-  user_data_base64 = base64encode(local.bastion_user_data)
+#   user_data_base64 = base64encode(local.bastion_user_data)
 
-  tags = merge(
-    { Name : "${local.name}-openvpnEC2-${count.index}" },
-    local.tags
-  )
-}
+#   tags = merge(
+#     { Name : "${local.name}-openvpnEC2-${count.index}" },
+#     local.tags
+#   )
+# }
 
 module "internal_ec2_sg" {
   source = "terraform-aws-modules/security-group/aws"
@@ -171,68 +171,68 @@ module "internal_ec2_sg" {
   )
 }
 
-module "webserver" {
-  source = "../modules/autoscalling"
+# module "webserver" {
+#   source = "../modules/autoscalling"
 
-  name = "${local.name}-webserver"
-  env  = local.env
+#   name = "${local.name}-webserver"
+#   env  = local.env
 
-  min_size         = local.isPrimary ? 2 : 1
-  max_size         = local.isPrimary ? 4 : 2
-  desired_capacity = local.isPrimary ? 2 : 1
+#   min_size         = local.isPrimary ? 2 : 1
+#   max_size         = local.isPrimary ? 4 : 2
+#   desired_capacity = local.isPrimary ? 2 : 1
 
-  vpc_id              = module.vpc.vpc_id
-  alb_subnets         = [for k, v in module.vpc.public_subnets : v]
-  vpc_zone_identifier = [for k, v in module.vpc.private_subnets : v]
-  certificate_arn     = module.certificate.arn
+#   vpc_id              = module.vpc.vpc_id
+#   alb_subnets         = [for k, v in module.vpc.public_subnets : v]
+#   vpc_zone_identifier = [for k, v in module.vpc.private_subnets : v]
+#   certificate_arn     = module.certificate.arn
 
-  image_id      = data.aws_ami.amazon_linux2.id
-  instance_type = "t3.micro"
+#   image_id      = data.aws_ami.amazon_linux2.id
+#   instance_type = "t3.micro"
 
-  // secret manager role 추가
-  // 해당 인스턴스들은 RDS 접근이 필요 없음.
-  # iam_instance_profile = module.db.role_name
+#   // secret manager role 추가
+#   // 해당 인스턴스들은 RDS 접근이 필요 없음.
+#   # iam_instance_profile = module.db.role_name
 
-  security_groups = [module.internal_ec2_sg.security_group_id]
+#   security_groups = [module.internal_ec2_sg.security_group_id]
 
-  user_data = base64encode(local.web_user_data)
+#   user_data = base64encode(local.web_user_data)
 
-  tags = merge(
-    { Name : "${local.name}-webserver" },
-    local.tags
-  )
-}
+#   tags = merge(
+#     { Name : "${local.name}-webserver" },
+#     local.tags
+#   )
+# }
 
-module "was" {
-  source = "../modules/autoscalling"
+# module "was" {
+#   source = "../modules/autoscalling"
 
-  name = "${local.name}-was"
-  env  = local.env
+#   name = "${local.name}-was"
+#   env  = local.env
 
-  min_size             = local.isPrimary ? 2 : 1
-  max_size             = local.isPrimary ? 4 : 2
-  desired_capacity     = local.isPrimary ? 2 : 1
+#   min_size             = local.isPrimary ? 2 : 1
+#   max_size             = local.isPrimary ? 4 : 2
+#   desired_capacity     = local.isPrimary ? 2 : 1
 
-  vpc_id              = module.vpc.vpc_id
-  alb_subnets         = [for k, v in module.vpc.public_subnets : v]
-  vpc_zone_identifier = [for k, v in module.vpc.private_subnets : v]
-  certificate_arn     = module.certificate.arn
+#   vpc_id              = module.vpc.vpc_id
+#   alb_subnets         = [for k, v in module.vpc.public_subnets : v]
+#   vpc_zone_identifier = [for k, v in module.vpc.private_subnets : v]
+#   certificate_arn     = module.certificate.arn
 
-  image_id      = data.aws_ami.amazon_linux2.id
-  instance_type = "t3.micro"
+#   image_id      = data.aws_ami.amazon_linux2.id
+#   instance_type = "t3.micro"
 
-  // secret manager role 추가
-  # iam_instance_profile = module.db.iam_instance_profile
+#   // secret manager role 추가
+#   # iam_instance_profile = module.db.iam_instance_profile
 
-  security_groups = [module.internal_ec2_sg.security_group_id]
+#   security_groups = [module.internal_ec2_sg.security_group_id]
 
-  user_data = base64encode(local.was_user_data)
+#   user_data = base64encode(local.was_user_data)
 
-  tags = merge(
-    { Name : "${local.name}-was" },
-    local.tags
-  )
-}
+#   tags = merge(
+#     { Name : "${local.name}-was" },
+#     local.tags
+#   )
+# }
 
 # module "regRecords" {
 #   source = "../modules/route"
@@ -254,51 +254,51 @@ module "was" {
 #   ]
 # }
 
-# module "internal_db_sg" {
-#   source = "terraform-aws-modules/security-group/aws"
+module "internal_db_sg" {
+  source = "terraform-aws-modules/security-group/aws"
 
-#   name        = "internal_db_sg"
-#   description = "This is an SG of internal_db_sg."
-#   vpc_id      = module.vpc.vpc_id
+  name        = "internal_db_sg"
+  description = "This is an SG of internal_db_sg."
+  vpc_id      = module.vpc.vpc_id
 
-#   egress_rules = ["all-all"]
+  egress_rules = ["all-all"]
 
-#   ingress_cidr_blocks = [
-#     local.vpc_cidr,
-#     # "0.0.0.0/0" # test
-#   ]
+  ingress_cidr_blocks = [
+    local.vpc_cidr,
+    # "0.0.0.0/0" # test
+  ]
 
-#   ingress_with_source_security_group_id = [
-#     {
-#       rule                     = "mysql-tcp"
-#       source_security_group_id = module.internal_ec2_sg.security_group_id
-#     }
-#   ]
+  ingress_with_source_security_group_id = [
+    {
+      rule                     = "mysql-tcp"
+      source_security_group_id = module.internal_ec2_sg.security_group_id
+    }
+  ]
 
-#   ingress_rules = [
-#     "all-icmp",
-#     "mysql-tcp"
-#   ]
+  ingress_rules = [
+    "all-icmp",
+    "mysql-tcp"
+  ]
 
-#   tags = merge(
-#     { Name : "${local.name}-internal_db_sg" },
-#     local.tags
-#   )
-# }
+  tags = merge(
+    { Name : "${local.name}-internal_db_sg" },
+    local.tags
+  )
+}
 
-# module "db" {
-#   count = local.isPrimary ? 1 : 0
-#   source = "./db"
+module "db" {
+  count = local.isPrimary ? 1 : 0
+  source = "../modules/db"
 
-#   name = "testdb"
-#   subnet_groups = module.vpc.database_subnets
-#   sg            = [module.internal_db_sg.security_group_id]
+  name = "testdb"
+  subnet_groups = module.vpc.database_subnets
+  sg            = [module.internal_db_sg.security_group_id]
 
-#   tags = merge(
-#     { Name : "${local.name}-db" },
-#     local.tags
-#   )
-# }
+  tags = merge(
+    { Name : "${local.name}-db" },
+    local.tags
+  )
+}
 
 
 output "info" {

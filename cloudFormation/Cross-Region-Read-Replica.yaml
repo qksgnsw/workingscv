@@ -1,0 +1,12 @@
+Resources:
+  MyReadReplica:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      SourceDBInstanceIdentifier: "arn:aws:rds:ap-northeast-2:244516738903:db:terraform-20240102085724918600000001"  # 서울 리전 RDS 인스턴스 ARN 입력
+      DBInstanceClass: "db.t3.micro"  # Read Replica 인스턴스 유형
+      DBInstanceIdentifier: "my-replica-instance"  # Read Replica 인스턴스명
+      PubliclyAccessible: false  # 퍼블릭 액세스 여부 설정
+      Tags:
+        - Key: Name
+          Value: MyReadReplica
+      SourceRegion: "ap-northeast-2"  # 서울리전

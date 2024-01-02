@@ -17,7 +17,7 @@ resource "aws_db_instance" "this" {
   instance_class       = "db.t3.micro"
   username             = var.username # admin
   # Secret manager 사용하려면 해당 옵션이 없어야함.
-  # password             = var.password # password!
+  password             = var.password # password!
   parameter_group_name = "default.mysql5.7"
   skip_final_snapshot  = true
   vpc_security_group_ids = var.sg
@@ -25,17 +25,21 @@ resource "aws_db_instance" "this" {
   # 퍼블릭 엑세스 추가
   # publicly_accessible = true
 
-  # Secret manager -> 비밀번호를 직접 설정 여부 옵션
-  manage_master_user_password = true
+  multi_az = true # multi_az 인스턴스 기능
+  
+  ca_cert_identifier = "rds-ca-rsa4096-g1" # 인증서 옵션
 
-  # KMS 
-  master_user_secret_kms_key_id = aws_kms_key.this.key_id
+  # monitoring_interval = 60 # 향상된 모니터링 활성화
+  auto_minor_version_upgrade = true # 자동 마이너 버전 업그레이드 활성화
+  # performance_insights_enabled = true # Performance Insights 활성화
 
-  # multi_az 인스턴스 기능
-  multi_az = true
+  # 저장 데이터 암호화 활성화 및 KMS 키 설정
+  storage_encrypted = true
+  kms_key_id = aws_kms_key.this.arn # 데이터 암호화
+  # manage_master_user_password = true # Secret manager -> 비밀번호를 직접 설정 여부 옵션
+  # master_user_secret_kms_key_id = aws_kms_key.this.key_id # 비밀번호 암호화
 
-  # 인증서 옵션
-  ca_cert_identifier = "rds-ca-rsa4096-g1"
+  backup_retention_period = 1 # 백업 보존 기간을 1일로 설정. read replica 사용시 0보다 커야함
 
   tags = var.tags
 }
