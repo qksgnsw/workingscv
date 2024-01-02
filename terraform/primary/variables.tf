@@ -8,5 +8,5 @@ variable "domain" {
 
 variable "isPrimary" {
   description = "is Region's Level Primary?"
-  type = bool
+  type        = bool
 }
