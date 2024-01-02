@@ -27,7 +27,8 @@ locals {
   vpc_cidr = "10.0.0.0/16"
   azs      = slice(data.aws_availability_zones.available.names, 0, 2)
 
-  domain = var.domain
+  region    = var.region
+  domain    = var.domain
   isPrimary = var.isPrimary
 
   bastion_user_data = <<-EOT
@@ -67,6 +68,7 @@ locals {
   tags = {
     Project_Name = local.name
     Env          = local.env
+    Region       = local.region
   }
 }
 
@@ -91,7 +93,7 @@ module "vpc" {
 }
 
 module "certificate" {
-  source = "./certificate"
+  source = "../modules/certificate"
 
   domain = local.domain
 }
@@ -124,7 +126,7 @@ module "openvpn_sg" {
 module "openvpnEC2" {
   source = "terraform-aws-modules/ec2-instance/aws"
 
-  count = 2
+  count = local.isPrimary ? 2 : 1
 
   ami                         = data.aws_ami.amazon_linux2.id
   subnet_id                   = module.vpc.public_subnets[count.index]
@@ -170,14 +172,14 @@ module "internal_ec2_sg" {
 }
 
 module "webserver" {
-  source = "./autoscalling"
+  source = "../modules/autoscalling"
 
   name = "${local.name}-webserver"
   env  = local.env
 
-  min_size             = local.isPrimary ? 2 : 1
-  max_size             = local.isPrimary ? 4 : 2
-  desired_capacity     = local.isPrimary ? 2 : 1
+  min_size         = local.isPrimary ? 2 : 1
+  max_size         = local.isPrimary ? 4 : 2
+  desired_capacity = local.isPrimary ? 2 : 1
 
   vpc_id              = module.vpc.vpc_id
   alb_subnets         = [for k, v in module.vpc.public_subnets : v]
@@ -202,7 +204,7 @@ module "webserver" {
 }
 
 module "was" {
-  source = "./autoscalling"
+  source = "../modules/autoscalling"
 
   name = "${local.name}-was"
   env  = local.env
@@ -220,7 +222,7 @@ module "was" {
   instance_type = "t3.micro"
 
   // secret manager role 추가
-  iam_instance_profile = module.db.iam_instance_profile
+  # iam_instance_profile = module.db.iam_instance_profile
 
   security_groups = [module.internal_ec2_sg.security_group_id]
 
@@ -232,70 +234,70 @@ module "was" {
   )
 }
 
-module "regRecords" {
-  source = "./route"
+# module "regRecords" {
+#   source = "../modules/route"
 
-  domain = local.domain
-  type   = "A"
+#   domain = local.domain
+#   type   = "A"
 
-  setSubdomains = [
-    {
-      subdomain = "www"
-      dns_name  = module.webserver.dns_name
-      zone_id   = module.webserver.zone_id
-    },
-    {
-      subdomain = "api"
-      dns_name  = module.was.dns_name
-      zone_id   = module.was.zone_id
-    }
-  ]
-}
+#   setSubdomains = [
+#     {
+#       subdomain = "www"
+#       dns_name  = module.webserver.dns_name
+#       zone_id   = module.webserver.zone_id
+#     },
+#     {
+#       subdomain = "api"
+#       dns_name  = module.was.dns_name
+#       zone_id   = module.was.zone_id
+#     }
+#   ]
+# }
 
-module "internal_db_sg" {
-  source = "terraform-aws-modules/security-group/aws"
+# module "internal_db_sg" {
+#   source = "terraform-aws-modules/security-group/aws"
 
-  name        = "internal_db_sg"
-  description = "This is an SG of internal_db_sg."
-  vpc_id      = module.vpc.vpc_id
+#   name        = "internal_db_sg"
+#   description = "This is an SG of internal_db_sg."
+#   vpc_id      = module.vpc.vpc_id
 
-  egress_rules = ["all-all"]
+#   egress_rules = ["all-all"]
 
-  ingress_cidr_blocks = [
-    local.vpc_cidr,
-    # "0.0.0.0/0" # test
-  ]
+#   ingress_cidr_blocks = [
+#     local.vpc_cidr,
+#     # "0.0.0.0/0" # test
+#   ]
 
-  ingress_with_source_security_group_id = [
-    {
-      rule                     = "mysql-tcp"
-      source_security_group_id = module.internal_ec2_sg.security_group_id
-    }
-  ]
+#   ingress_with_source_security_group_id = [
+#     {
+#       rule                     = "mysql-tcp"
+#       source_security_group_id = module.internal_ec2_sg.security_group_id
+#     }
+#   ]
 
-  ingress_rules = [
-    "all-icmp",
-    "mysql-tcp"
-  ]
+#   ingress_rules = [
+#     "all-icmp",
+#     "mysql-tcp"
+#   ]
 
-  tags = merge(
-    { Name : "${local.name}-internal_db_sg" },
-    local.tags
-  )
-}
+#   tags = merge(
+#     { Name : "${local.name}-internal_db_sg" },
+#     local.tags
+#   )
+# }
 
-module "db" {
-  source = "./db"
+# module "db" {
+#   source = "../modules/db"
 
-  name = "testdb"
-  subnet_groups = module.vpc.database_subnets
-  sg            = [module.internal_db_sg.security_group_id]
+#   name = "testdb"
+#   subnet_groups = module.vpc.database_subnets
+#   sg            = [module.internal_db_sg.security_group_id]
 
-  tags = merge(
-    { Name : "${local.name}-db" },
-    local.tags
-  )
-}
+#   tags = merge(
+#     { Name : "${local.name}-db" },
+#     local.tags
+#   )
+# }
 
 
 output "info" {
