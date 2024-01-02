@@ -242,3 +242,8 @@ cd ./workingscv
 - CloudFormation 소스 추가
   - AWS Budgets을 활용한 비용 모니터링
   - AWS Automation for AWS WAF
+
+- failover routing 추가
+  - CloudFormation으로 구현
+  - 각 리전에 대한 테라폼 배포 후
+  - cloudformation에 있는 failover 스택으로 배포
