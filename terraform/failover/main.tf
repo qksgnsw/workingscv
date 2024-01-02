@@ -1,3 +1,4 @@
+# 기본 및 보조 AWS 공급자 정의
 provider "aws" {
   region = var.primary_region
 }
@@ -7,12 +8,14 @@ provider "aws" {
   region = var.secondary_region
 }
 
+# 현재 사용자 정보와 가용성 존 데이터 수집
 data "aws_caller_identity" "current" {}
 data "aws_availability_zones" "primary" {}
 data "aws_availability_zones" "secondary" {
   provider = aws.secondary
 }
 
+# 기본 및 보조 지역에 대한 Amazon Linux 2 AMI 데이터 수집
 data "aws_ami" "primary_amazon_linux2" {
   most_recent = true
 
@@ -42,6 +45,7 @@ data "aws_ami" "secondary_amazon_linux2" {
     values = ["hvm"]
   }
 }
+
 
 # 로컬 변수 선언
 locals {

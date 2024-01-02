@@ -11,6 +11,7 @@ locals {
   }
 }
 
+# Security Group 모듈 설정
 module "alb_sg" {
   source = "terraform-aws-modules/security-group/aws"
 
@@ -35,7 +36,7 @@ module "alb_sg" {
   )
 }
 
-# 오토스케일링으로 만들어질 ec2들 설정
+# 오토스케일링을 위한 EC2 설정
 resource "aws_launch_configuration" "as_templete" {
   name_prefix   = "${local.name}-asg-"
   image_id      = var.image_id 
@@ -48,11 +49,10 @@ resource "aws_launch_configuration" "as_templete" {
   iam_instance_profile = var.iam_instance_profile
 }
 
-# ALB 설정
+# Application Load Balancer(ALB) 설정
 resource "aws_lb" "alb" {
   name               = "${local.name}-lb"
   internal           = false
-  # load_balancer_type = "network"
   load_balancer_type = "application"
   security_groups    = [module.alb_sg.security_group_id]
   subnets            = var.alb_subnets
@@ -66,7 +66,7 @@ resource "aws_lb" "alb" {
   )
 }
 
-# 타겟그룹
+# 타겟 그룹 설정
 resource "aws_lb_target_group" "tg" {
   name     = "${local.name}-tg"
   port     = 80
@@ -74,7 +74,7 @@ resource "aws_lb_target_group" "tg" {
   vpc_id   = var.vpc_id
 }
 
-# alb 리스너
+# ALB 리스너 설정(HTTP)
 resource "aws_lb_listener" "alb80listener" {
   load_balancer_arn = aws_lb.alb.arn
   port              = "80"
@@ -94,6 +94,7 @@ resource "aws_lb_listener" "alb80listener" {
   }
 }
 
+# ALB 리스너 설정(HTTPS)
 resource "aws_lb_listener" "alb443listener" {
   load_balancer_arn = aws_lb.alb.arn
   port              = "443"
@@ -126,6 +127,7 @@ resource "aws_autoscaling_group" "asg" {
   }
 }
 
+# CPU 스케일 아웃 정책 설정
 resource "aws_autoscaling_policy" "cpu_scale_out_policy" {
   autoscaling_group_name = aws_autoscaling_group.asg.name
   name                   = "${local.name}_cpu_scale_out_policy"
