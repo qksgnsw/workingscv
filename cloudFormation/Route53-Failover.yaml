@@ -1,0 +1,55 @@
+Description: This template must deploy on two region, primary and secondary.
+
+Parameters:
+  AlbHostedNameID:
+    Type: String
+    Description: Here is your alb hosted name.
+  AlbDnsName:
+    Type: String
+    Description: Here is your alb dns name.
+  OriginDomainName:
+    Type: String
+    Description: Domain Name registed to Route53.
+    Default: example.com
+  FailoverState:
+    Type: String
+    AllowedValues:
+      - PRIMARY
+      - SECONDARY
+    Default: PRIMARY
+  SubDomain:
+    Type: String
+    Description: Sub Domain Name registed to Route53.
+    Default: "www"
+  
+
+Resources:
+  # 상태검사
+  HealthCheck: 
+    Type: AWS::Route53::HealthCheck
+    Properties: 
+      HealthCheckConfig: 
+        Port: 80
+        Type: HTTP
+        ResourcePath: /
+        FullyQualifiedDomainName: !Ref AlbDnsName
+        RequestInterval: 30
+        FailureThreshold: 3
+      HealthCheckTags: 
+        - Key: Name
+          Value: !Sub ${FailoverState}-HealthCheck-${SubDomain}
+
+  # Route53 - Failover
+  RouteRecordSet:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Join [ ".", [ !Ref OriginDomainName, "" ] ]
+      Name: !Join [ ".", [ !Ref SubDomain, !Ref OriginDomainName, "" ] ]
+      Type: A
+      Failover: !Sub ${FailoverState}
+      SetIdentifier: !Sub ${FailoverState}-Health-Check
+      HealthCheckId: !Ref HealthCheck
+      AliasTarget: 
+        HostedZoneId: !Ref AlbHostedNameID
+        DNSName: !Ref AlbDnsName
+        EvaluateTargetHealth: true
