@@ -286,14 +286,9 @@ module "was" {
 #   )
 # }
 
-<<<<<<< HEAD:terraform/main.tf
-module "db" {
-  count = local.isPrimary ? 1 : 0
-  source = "./db"
-=======
 # module "db" {
-#   source = "../modules/db"
->>>>>>> temp:terraform/primary/main.tf
+#   count = local.isPrimary ? 1 : 0
+#   source = "./db"
 
 #   name = "testdb"
 #   subnet_groups = module.vpc.database_subnets
