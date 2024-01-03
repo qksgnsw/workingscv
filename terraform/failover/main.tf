@@ -49,7 +49,7 @@ data "aws_ami" "secondary_amazon_linux2" {
 
 # 로컬 변수 선언
 locals {
-  name             = "workingSCV"
+  name             = "workingscv"
   env              = "Dev"
   primary_region   = var.primary_region
   primary_vpc_cidr = "10.0.0.0/16"
@@ -60,6 +60,18 @@ locals {
   secondary_azs      = slice(data.aws_availability_zones.secondary.names, 0, 2)
 
   domain = var.domain
+
+  db = {
+    engine                = "mysql"
+    engine_version        = "5.7"
+    instance_class        = "db.t3.large"
+    engine_name           = "mysql"
+    major_engine_version  = "5.7"
+    family                = "mysql5.7"     #
+    allocated_storage     = 20
+    max_allocated_storage = 100
+    port                  = 3306
+  }
 
   bastion_user_data = <<-EOT
   #!/bin/bash
@@ -101,6 +113,10 @@ locals {
   }
 }
 
+#######################################################################
+# AWS VPC
+#######################################################################
+
 module "primary_vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 5.0"
@@ -138,21 +154,29 @@ module "secondary_vpc" {
   tags = local.tags
 }
 
-module "primary_certificate" {
-  source = "../modules/certificate"
+#######################################################################
+# AWS Certificate
+#######################################################################
 
-  domain = local.domain
-}
+# module "primary_certificate" {
+#   source = "../modules/certificate"
 
-module "secondary_certificate" {
-  source = "../modules/certificate"
+#   domain = local.domain
+# }
 
-  providers = {
-    aws = aws.secondary
-  }
+# module "secondary_certificate" {
+#   source = "../modules/certificate"
 
-  domain = local.domain
-}
+#   providers = {
+#     aws = aws.secondary
+#   }
+
+#   domain = local.domain
+# }
+
+#######################################################################
+# AWS SG
+#######################################################################
 
 module "primary_openvpn_sg" {
   source = "terraform-aws-modules/security-group/aws"
@@ -204,52 +228,6 @@ module "secondary_openvpn_sg" {
 
   tags = merge(
     { Name : "${local.name}-secondary_openvpn_sg" },
-    local.tags
-  )
-}
-
-module "primary_openvpnEC2" {
-  source = "terraform-aws-modules/ec2-instance/aws"
-
-  count = 2
-
-  ami                         = data.aws_ami.primary_amazon_linux2.id
-  subnet_id                   = module.primary_vpc.public_subnets[count.index]
-  instance_type               = "t3.micro"
-  monitoring                  = true
-  associate_public_ip_address = true
-
-  vpc_security_group_ids = [module.primary_openvpn_sg.security_group_id]
-
-  user_data_base64 = base64encode(local.bastion_user_data)
-
-  tags = merge(
-    { Name : "${local.name}-primary_openvpnEC2-${count.index}" },
-    local.tags
-  )
-}
-
-module "secondary_openvpnEC2" {
-  source = "terraform-aws-modules/ec2-instance/aws"
-
-  providers = {
-    aws = aws.secondary
-  }
-
-  count = 1
-
-  ami                         = data.aws_ami.secondary_amazon_linux2.id
-  subnet_id                   = module.secondary_vpc.public_subnets[count.index]
-  instance_type               = "t3.micro"
-  monitoring                  = true
-  associate_public_ip_address = true
-
-  vpc_security_group_ids = [module.secondary_openvpn_sg.security_group_id]
-
-  user_data_base64 = base64encode(local.bastion_user_data)
-
-  tags = merge(
-    { Name : "${local.name}-secondary_openvpnEC2-${count.index}" },
     local.tags
   )
 }
@@ -312,229 +290,473 @@ module "secondary_internal_ec2_sg" {
   )
 }
 
-module "primary_webserver" {
-  source = "../modules/autoscalling"
 
-  name = "${local.name}-pri-ws"
-  env  = local.env
+module "primary_internal_db_sg" {
+  source = "terraform-aws-modules/security-group/aws"
 
-  min_size         = 2
-  max_size         = 4
-  desired_capacity = 2
+  name        = "primary_internal_db_sg"
+  description = "This is an SG of primary_internal_db_sg."
+  vpc_id      = module.primary_vpc.vpc_id
 
-  vpc_id              = module.primary_vpc.vpc_id
-  alb_subnets         = [for k, v in module.primary_vpc.public_subnets : v]
-  vpc_zone_identifier = [for k, v in module.primary_vpc.private_subnets : v]
-  certificate_arn     = module.primary_certificate.arn
+  egress_rules = ["all-all"]
 
-  image_id      = data.aws_ami.primary_amazon_linux2.id
-  instance_type = "t3.micro"
+  ingress_cidr_blocks = [
+    local.primary_vpc_cidr,
+    # "0.0.0.0/0" # test
+  ]
 
-  // secret manager role 추가
-  // 해당 인스턴스들은 RDS 접근이 필요 없음.
-  # iam_instance_profile = module.db.role_name
-
-  security_groups = [module.primary_internal_ec2_sg.security_group_id]
-
-  user_data = base64encode(local.web_user_data)
-
-  tags = merge(
-    { Name : "${local.name}-primary-webserver" },
-    local.tags
-  )
-}
-
-module "secondary_webserver" {
-  source = "../modules/autoscalling"
-
-  providers = {
-    aws = aws.secondary
-  }
-
-  name = "${local.name}-sec-ws"
-  env  = local.env
-
-  min_size         = 1
-  max_size         = 2
-  desired_capacity = 1
-
-  vpc_id              = module.secondary_vpc.vpc_id
-  alb_subnets         = [for k, v in module.secondary_vpc.public_subnets : v]
-  vpc_zone_identifier = [for k, v in module.secondary_vpc.private_subnets : v]
-  certificate_arn     = module.secondary_certificate.arn
-
-  image_id      = data.aws_ami.secondary_amazon_linux2.id
-  instance_type = "t3.micro"
-
-  // secret manager role 추가
-  // 해당 인스턴스들은 RDS 접근이 필요 없음.
-  # iam_instance_profile = module.db.role_name
-
-  security_groups = [module.secondary_internal_ec2_sg.security_group_id]
-
-  user_data = base64encode(local.web_user_data)
-
-  tags = merge(
-    { Name : "${local.name}-secondary-webserver" },
-    local.tags
-  )
-}
-
-module "primary_was" {
-  source = "../modules/autoscalling"
-
-  name = "${local.name}-pri-was"
-  env  = local.env
-
-  min_size         = 2
-  max_size         = 4
-  desired_capacity = 2
-
-  vpc_id              = module.primary_vpc.vpc_id
-  alb_subnets         = [for k, v in module.primary_vpc.public_subnets : v]
-  vpc_zone_identifier = [for k, v in module.primary_vpc.private_subnets : v]
-  certificate_arn     = module.primary_certificate.arn
-
-  image_id      = data.aws_ami.primary_amazon_linux2.id
-  instance_type = "t3.micro"
-
-  // secret manager role 추가
-  # iam_instance_profile = module.db.iam_instance_profile
-
-  security_groups = [module.primary_internal_ec2_sg.security_group_id]
-
-  user_data = base64encode(local.was_user_data)
-
-  tags = merge(
-    { Name : "${local.name}-primary-was" },
-    local.tags
-  )
-}
-
-module "secondary_was" {
-  source = "../modules/autoscalling"
-
-  providers = {
-    aws = aws.secondary
-  }
-
-  name = "${local.name}-sec-was"
-  env  = local.env
-
-  min_size         = 1
-  max_size         = 2
-  desired_capacity = 1
-
-  vpc_id              = module.secondary_vpc.vpc_id
-  alb_subnets         = [for k, v in module.secondary_vpc.public_subnets : v]
-  vpc_zone_identifier = [for k, v in module.secondary_vpc.private_subnets : v]
-  certificate_arn     = module.secondary_certificate.arn
-
-  image_id      = data.aws_ami.secondary_amazon_linux2.id
-  instance_type = "t3.micro"
-
-  // secret manager role 추가
-  # iam_instance_profile = module.db.iam_instance_profile
-
-  security_groups = [module.secondary_internal_ec2_sg.security_group_id]
-
-  user_data = base64encode(local.was_user_data)
-
-  tags = merge(
-    { Name : "${local.name}-secondary-was" },
-    local.tags
-  )
-}
-
-module "reg_primary_failover_record" {
-  source = "../modules/route"
-
-  domain = local.domain
-  type   = "A"
-
-  setSubdomains = [
+  ingress_with_source_security_group_id = [
     {
-      subdomain      = "www"
-      dns_name       = module.primary_webserver.dns_name
-      zone_id        = module.primary_webserver.zone_id
-      set_identifier = "primary-www"
-    },
-    {
-      subdomain      = "api"
-      dns_name       = module.primary_was.dns_name
-      zone_id        = module.primary_was.zone_id
-      set_identifier = "primary-api"
+      rule                     = "mysql-tcp"
+      source_security_group_id = module.primary_internal_ec2_sg.security_group_id
     }
   ]
+
+  ingress_rules = [
+    "all-icmp",
+    "mysql-tcp"
+  ]
+
+  tags = merge(
+    { Name : "${local.name}-primary_internal_db_sg" },
+    local.tags
+  )
 }
 
-module "reg_secondary_failover_record" {
-  source = "../modules/route"
+module "secondary_internal_db_sg" {
+  source = "terraform-aws-modules/security-group/aws"
 
   providers = {
     aws = aws.secondary
   }
 
-  domain = local.domain
-  type   = "A"
+  name        = "secondary_internal_db_sg"
+  description = "This is an SG of secondary_internal_db_sg."
+  vpc_id      = module.secondary_vpc.vpc_id
 
-  failover_type = "SECONDARY"
+  egress_rules = ["all-all"]
 
-  setSubdomains = [
+  ingress_cidr_blocks = [
+    local.secondary_vpc_cidr,
+    # "0.0.0.0/0" # test
+  ]
+
+  ingress_with_source_security_group_id = [
     {
-      subdomain      = "www"
-      dns_name       = module.secondary_webserver.dns_name
-      zone_id        = module.secondary_webserver.zone_id
-      set_identifier = "secondary-www"
-    },
-    {
-      subdomain      = "api"
-      dns_name       = module.secondary_was.dns_name
-      zone_id        = module.secondary_was.zone_id
-      set_identifier = "secondary-api"
+      rule                     = "mysql-tcp"
+      source_security_group_id = module.secondary_internal_ec2_sg.security_group_id
     }
   ]
+
+  ingress_rules = [
+    "all-icmp",
+    "mysql-tcp"
+  ]
+
+  tags = merge(
+    { Name : "${local.name}-secondary_internal_db_sg" },
+    local.tags
+  )
 }
 
-# module "internal_db_sg" {
-#   source = "terraform-aws-modules/security-group/aws"
+#######################################################################
+# AWS EC2
+#######################################################################
 
-#   name        = "internal_db_sg"
-#   description = "This is an SG of internal_db_sg."
-#   vpc_id      = module.vpc.vpc_id
+# module "primary_openvpnEC2" {
+#   source = "terraform-aws-modules/ec2-instance/aws"
 
-#   egress_rules = ["all-all"]
+#   count = 2
 
-#   ingress_cidr_blocks = [
-#     local.vpc_cidr,
-#     # "0.0.0.0/0" # test
-#   ]
+#   ami                         = data.aws_ami.primary_amazon_linux2.id
+#   subnet_id                   = module.primary_vpc.public_subnets[count.index]
+#   instance_type               = "t3.micro"
+#   monitoring                  = true
+#   associate_public_ip_address = true
 
-#   ingress_with_source_security_group_id = [
-#     {
-#       rule                     = "mysql-tcp"
-#       source_security_group_id = module.internal_ec2_sg.security_group_id
-#     }
-#   ]
+#   vpc_security_group_ids = [module.primary_openvpn_sg.security_group_id]
 
-#   ingress_rules = [
-#     "all-icmp",
-#     "mysql-tcp"
-#   ]
+#   user_data_base64 = base64encode(local.bastion_user_data)
 
 #   tags = merge(
-#     { Name : "${local.name}-internal_db_sg" },
+#     { Name : "${local.name}-primary_openvpnEC2-${count.index}" },
 #     local.tags
 #   )
 # }
 
-# module "db" {
-#   count = local.isPrimary ? 1 : 0
+# module "secondary_openvpnEC2" {
+#   source = "terraform-aws-modules/ec2-instance/aws"
+
+#   providers = {
+#     aws = aws.secondary
+#   }
+
+#   count = 1
+
+#   ami                         = data.aws_ami.secondary_amazon_linux2.id
+#   subnet_id                   = module.secondary_vpc.public_subnets[count.index]
+#   instance_type               = "t3.micro"
+#   monitoring                  = true
+#   associate_public_ip_address = true
+
+#   vpc_security_group_ids = [module.secondary_openvpn_sg.security_group_id]
+
+#   user_data_base64 = base64encode(local.bastion_user_data)
+
+#   tags = merge(
+#     { Name : "${local.name}-secondary_openvpnEC2-${count.index}" },
+#     local.tags
+#   )
+# }
+
+# module "primary_webserver" {
+#   source = "../modules/autoscalling"
+
+#   name = "${local.name}-pri-ws"
+#   env  = local.env
+
+#   min_size         = 2
+#   max_size         = 4
+#   desired_capacity = 2
+
+#   vpc_id              = module.primary_vpc.vpc_id
+#   alb_subnets         = [for k, v in module.primary_vpc.public_subnets : v]
+#   vpc_zone_identifier = [for k, v in module.primary_vpc.private_subnets : v]
+#   certificate_arn     = module.primary_certificate.arn
+
+#   image_id      = data.aws_ami.primary_amazon_linux2.id
+#   instance_type = "t3.micro"
+
+#   // secret manager role 추가
+#   // 해당 인스턴스들은 RDS 접근이 필요 없음.
+#   # iam_instance_profile = module.db.role_name
+
+#   security_groups = [module.primary_internal_ec2_sg.security_group_id]
+
+#   user_data = base64encode(local.web_user_data)
+
+#   tags = merge(
+#     { Name : "${local.name}-primary-webserver" },
+#     local.tags
+#   )
+# }
+
+# module "secondary_webserver" {
+#   source = "../modules/autoscalling"
+
+#   providers = {
+#     aws = aws.secondary
+#   }
+
+#   name = "${local.name}-sec-ws"
+#   env  = local.env
+
+#   min_size         = 1
+#   max_size         = 2
+#   desired_capacity = 1
+
+#   vpc_id              = module.secondary_vpc.vpc_id
+#   alb_subnets         = [for k, v in module.secondary_vpc.public_subnets : v]
+#   vpc_zone_identifier = [for k, v in module.secondary_vpc.private_subnets : v]
+#   certificate_arn     = module.secondary_certificate.arn
+
+#   image_id      = data.aws_ami.secondary_amazon_linux2.id
+#   instance_type = "t3.micro"
+
+#   // secret manager role 추가
+#   // 해당 인스턴스들은 RDS 접근이 필요 없음.
+#   # iam_instance_profile = module.db.role_name
+
+#   security_groups = [module.secondary_internal_ec2_sg.security_group_id]
+
+#   user_data = base64encode(local.web_user_data)
+
+#   tags = merge(
+#     { Name : "${local.name}-secondary-webserver" },
+#     local.tags
+#   )
+# }
+
+# module "primary_was" {
+#   source = "../modules/autoscalling"
+
+#   name = "${local.name}-pri-was"
+#   env  = local.env
+
+#   min_size         = 2
+#   max_size         = 4
+#   desired_capacity = 2
+
+#   vpc_id              = module.primary_vpc.vpc_id
+#   alb_subnets         = [for k, v in module.primary_vpc.public_subnets : v]
+#   vpc_zone_identifier = [for k, v in module.primary_vpc.private_subnets : v]
+#   certificate_arn     = module.primary_certificate.arn
+
+#   image_id      = data.aws_ami.primary_amazon_linux2.id
+#   instance_type = "t3.micro"
+
+#   // secret manager role 추가
+#   # iam_instance_profile = module.db.iam_instance_profile
+
+#   security_groups = [module.primary_internal_ec2_sg.security_group_id]
+
+#   user_data = base64encode(local.was_user_data)
+
+#   tags = merge(
+#     { Name : "${local.name}-primary-was" },
+#     local.tags
+#   )
+# }
+
+# module "secondary_was" {
+#   source = "../modules/autoscalling"
+
+#   providers = {
+#     aws = aws.secondary
+#   }
+
+#   name = "${local.name}-sec-was"
+#   env  = local.env
+
+#   min_size         = 1
+#   max_size         = 2
+#   desired_capacity = 1
+
+#   vpc_id              = module.secondary_vpc.vpc_id
+#   alb_subnets         = [for k, v in module.secondary_vpc.public_subnets : v]
+#   vpc_zone_identifier = [for k, v in module.secondary_vpc.private_subnets : v]
+#   certificate_arn     = module.secondary_certificate.arn
+
+#   image_id      = data.aws_ami.secondary_amazon_linux2.id
+#   instance_type = "t3.micro"
+
+#   // secret manager role 추가
+#   # iam_instance_profile = module.db.iam_instance_profile
+
+#   security_groups = [module.secondary_internal_ec2_sg.security_group_id]
+
+#   user_data = base64encode(local.was_user_data)
+
+#   tags = merge(
+#     { Name : "${local.name}-secondary-was" },
+#     local.tags
+#   )
+# }
+
+#######################################################################
+# Route 53
+#######################################################################
+
+# module "reg_primary_failover_record" {
+#   source = "../modules/route"
+
+#   domain = local.domain
+#   type   = "A"
+
+#   setSubdomains = [
+#     {
+#       subdomain      = "www"
+#       dns_name       = module.primary_webserver.dns_name
+#       zone_id        = module.primary_webserver.zone_id
+#       set_identifier = "primary-www"
+#     },
+#     {
+#       subdomain      = "api"
+#       dns_name       = module.primary_was.dns_name
+#       zone_id        = module.primary_was.zone_id
+#       set_identifier = "primary-api"
+#     }
+#   ]
+# }
+
+# module "reg_secondary_failover_record" {
+#   source = "../modules/route"
+
+#   providers = {
+#     aws = aws.secondary
+#   }
+
+#   domain = local.domain
+#   type   = "A"
+
+#   failover_type = "SECONDARY"
+
+#   setSubdomains = [
+#     {
+#       subdomain      = "www"
+#       dns_name       = module.secondary_webserver.dns_name
+#       zone_id        = module.secondary_webserver.zone_id
+#       set_identifier = "secondary-www"
+#     },
+#     {
+#       subdomain      = "api"
+#       dns_name       = module.secondary_was.dns_name
+#       zone_id        = module.secondary_was.zone_id
+#       set_identifier = "secondary-api"
+#     }
+#   ]
+# }
+
+#######################################################################
+# terraform-aws-modules/rds/aws
+#######################################################################
+
+module "kms" {
+  source      = "terraform-aws-modules/kms/aws"
+  version     = "~> 1.0"
+  description = "KMS key for cross region replica DB"
+
+  # Aliases
+  aliases                 = [local.name]
+  aliases_use_name_prefix = true
+
+  key_owners = [data.aws_caller_identity.current.id]
+
+  tags = local.tags
+
+  providers = {
+    aws = aws.secondary
+  }
+}
+
+module "master" {
+  source = "terraform-aws-modules/rds/aws"
+
+  identifier = "${local.name}-master"
+
+  engine         = local.db.engine
+  engine_version = local.db.engine_version
+  family               = local.db.family
+  major_engine_version = local.db.major_engine_version
+  instance_class = local.db.instance_class
+
+  allocated_storage     = local.db.allocated_storage
+  max_allocated_storage = local.db.max_allocated_storage
+
+  db_name  = "testdb"
+  username = "admin"
+  port     = local.db.port
+
+  multi_az               = true
+  db_subnet_group_name   = module.primary_vpc.database_subnet_group_name
+  vpc_security_group_ids = [module.primary_internal_db_sg.security_group_id]
+
+  # maintenance_window              = "Mon:00:00-Mon:03:00"
+  # backup_window                   = "03:00-06:00"
+  # enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
+
+  # Backups are required in order to create a replica
+  backup_retention_period = 1
+  skip_final_snapshot     = true
+  deletion_protection     = false
+
+  tags = local.tags
+}
+
+module "replica" {
+  source = "terraform-aws-modules/rds/aws"
+
+  providers = {
+    aws = aws.secondary
+  }
+
+  identifier = "${local.name}-replica"
+
+  # Source database. For cross-region use db_instance_arn
+  replicate_source_db = module.master.db_instance_arn
+
+  engine         = local.db.engine
+  engine_version = local.db.engine_version
+  family               = local.db.family
+  major_engine_version = local.db.major_engine_version
+  instance_class = local.db.instance_class
+  kms_key_id     = module.kms.key_arn
+
+  allocated_storage     = local.db.allocated_storage
+  max_allocated_storage = local.db.max_allocated_storage
+
+  password = "password!"
+  # Not supported with replicas
+  manage_master_user_password = false
+
+  # Username and password should not be set for replicas
+  port = local.db.port
+
+  multi_az               = false
+  vpc_security_group_ids = [module.secondary_internal_db_sg.security_group_id]
+
+  # maintenance_window              = "Tue:00:00-Tue:03:00"
+  # backup_window                   = "03:00-06:00"
+  # enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
+
+  backup_retention_period = 0
+  skip_final_snapshot     = true
+  deletion_protection     = false
+
+  # Specify a subnet group created in the replica region
+  db_subnet_group_name = module.secondary_vpc.database_subnet_group_name
+
+  tags = local.tags
+}
+
+#######################################################################
+# AWS RDS
+#######################################################################
+# module "primary_db" {
 #   source = "../modules/db"
 
-#   name = "testdb"
-#   subnet_groups = module.vpc.database_subnets
-#   sg            = [module.internal_db_sg.security_group_id]
+#   name = local.name
+
+#   isReplica = false
+
+#   subnet_groups = module.primary_vpc.database_subnets
+#   sg            = [module.primary_internal_db_sg.security_group_id]
+
+#   tags = merge(
+#     { Name : "${local.name}-db" },
+#     local.tags
+#   )
+# }
+
+# module "primary_db" {
+#   source = "../modules/db"
+
+#   providers = {
+#     aws = aws.secondary
+#   }
+
+#   name = local.name
+
+#   subnet_groups = module.secondary_vpc.database_subnets
+#   sg            = [module.secondary_internal_db_sg.security_group_id]
+
+#   tags = merge(
+#     { Name : "${local.name}-db" },
+#     local.tags
+#   )
+# }
+
+#######################################################################
+# aurora
+#######################################################################
+# module "db" {
+#   source = "../modules/db"
+#   name   = local.name
+
+#   primary_region   = local.primary_region
+#   secondary_region = local.secondary_region
+
+#   primary_vpc = {
+#     vpc_id                     = module.primary_vpc.vpc_id
+#     database_subnet_group_name = module.primary_vpc.database_subnet_group_name
+#   }
+#   primary_vpc_private_subnets_cidr_blocks = module.primary_vpc.private_subnets_cidr_blocks
+
+#   secondary_vpc = {
+#     vpc_id                     = module.secondary_vpc.vpc_id
+#     database_subnet_group_name = module.secondary_vpc.database_subnet_group_name
+#   }
+#   secondary_vpc_private_subnets_cidr_blocks = module.secondary_vpc.private_subnets_cidr_blocks
 
 #   tags = merge(
 #     { Name : "${local.name}-db" },
@@ -543,32 +765,36 @@ module "reg_secondary_failover_record" {
 # }
 
 
-output "info" {
-  value = {
-    primary = {
-      webserver = {
-        webserver_hoted_name_id = module.primary_webserver.zone_id
-        webserver_dns           = module.primary_webserver.dns_name
-        webserver_id            = module.primary_webserver.id
-      }
-      was = {
-        was_hoted_name_id = module.primary_was.zone_id
-        was_dns           = module.primary_was.dns_name
-        was_id            = module.primary_was.id
-      }
-    }
-    secondary = {
-      webserver = {
-        webserver_hoted_name_id = module.secondary_webserver.zone_id
-        webserver_dns           = module.secondary_webserver.dns_name
-        webserver_id            = module.secondary_webserver.id
-      }
-      was = {
-        was_hoted_name_id = module.secondary_was.zone_id
-        was_dns           = module.secondary_was.dns_name
-        was_id            = module.secondary_was.id
-      }
-    }
+#######################################################################
+# OUTPUT
+#######################################################################
+# output "info" {
+  # value = {
+  #   primary = {
+  #     vpc = module.primary_vpc
+  #     webserver = {
+  #       webserver_hoted_name_id = module.primary_webserver.zone_id
+  #       webserver_dns           = module.primary_webserver.dns_name
+  #       webserver_id            = module.primary_webserver.id
+  #     }
+  #     was = {
+  #       was_hoted_name_id = module.primary_was.zone_id
+  #       was_dns           = module.primary_was.dns_name
+  #       was_id            = module.primary_was.id
+  #     }
+  #   }
+  #   secondary = {
+  #     webserver = {
+  #       webserver_hoted_name_id = module.secondary_webserver.zone_id
+  #       webserver_dns           = module.secondary_webserver.dns_name
+  #       webserver_id            = module.secondary_webserver.id
+  #     }
+  #     was = {
+  #       was_hoted_name_id = module.secondary_was.zone_id
+  #       was_dns           = module.secondary_was.dns_name
+  #       was_id            = module.secondary_was.id
+  #     }
+  #   }
 
     # setup = {
     #   azs = local.azs
@@ -621,5 +847,5 @@ output "info" {
     #   iam_instance_profile = module.db.iam_instance_profile
     #   secret_name = module.db.secret_name
     # }
-  }
-}
+#   }
+# }
