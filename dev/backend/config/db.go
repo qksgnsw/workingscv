@@ -53,11 +53,11 @@ func init() {
 		// 데이터베이스 연결 문자열 생성
 		connStr = fmt.Sprintf("%s:%s@tcp(%s)/%s", dbUser, dbPassword, dbHost, dbName)
 	} else {
-		dbUser := "admin"         // 사용자 이름
-		dbPassword := "password!" // 비밀번호
-		dbPort := "3306"          // 포트
-		dbName := "testdb"        // 데이터베이스 이름
-		dbHost := "localhost"     // 호스트
+		dbUser := "admin"              // 사용자 이름
+		dbPassword := "password!"      // 비밀번호
+		dbPort := "3306"               // 포트
+		dbName := "testdb"             // 데이터베이스 이름
+		dbHost := os.Getenv("DB_HOST") // 호스트
 
 		// 데이터베이스 연결 문자열 생성
 		connStr = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", dbUser, dbPassword, dbHost, dbPort, dbName)
@@ -77,17 +77,19 @@ func init() {
 		log.Fatal(err)
 	}
 
-	// IF NOT EXISTS는 테이블이 이미 존재하는 경우에는 생성하지 않도록 하는 옵션입니다.
-	createTableQuery := `
-        CREATE TABLE IF NOT EXISTS memos (
-            id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-            title VARCHAR(100) NOT NULL,
-            content VARCHAR(100) NOT NULL
-        )
-    `
-	_, err = DB.Exec(createTableQuery)
-	if err != nil {
-		panic(err.Error())
+	if os.Getenv("ENV") == "prod" {
+		// IF NOT EXISTS는 테이블이 이미 존재하는 경우에는 생성하지 않도록 하는 옵션입니다.
+		createTableQuery := `
+			CREATE TABLE IF NOT EXISTS memos (
+				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+				title VARCHAR(100) NOT NULL,
+				content VARCHAR(100) NOT NULL
+			)
+		`
+		_, err = DB.Exec(createTableQuery)
+		if err != nil {
+			panic(err.Error())
+		}
 	}
 
 	fmt.Println("Connected to the database.")

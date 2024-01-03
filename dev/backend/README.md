@@ -14,4 +14,9 @@ DB_HOST={{ DB_HOST }} ./backend_{{ OS }}_{{ ARCH }}
 ENV=prod SECRET_NAME={{ DBCredentials_SECRET_NAME }} ./backend_{{ OS }}_{{ ARCH }}
 ```
 
-ENV=prod SECRET_NAME=testdb_20231227110451580000000001 ./backend_linux_x86_64
+ENV=prod SECRET_NAME=rds\!db-cc73e095-5610-477d-afda-060859956653 ./backend_linux_x86_64
+
+ENV=dev DB_HOST=workingscv-master.cvthkx2gfpla.ap-northeast-2.rds.amazonaws.com ./backend_linux_x86_64
+
+
+ENV=dev DB_HOST=workingscv-replica.cryoigw06ouk.ap-northeast-1.rds.amazonaws.com ./backend_linux_x86_64
