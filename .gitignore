@@ -1,4 +1,5 @@
 .DS_Store
+screeshot
 package*
 node_modules
 .vagrant

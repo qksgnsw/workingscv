@@ -606,23 +606,24 @@ module "kms" {
   version     = "~> 1.0"
   description = "KMS key for cross region replica DB"
 
-  # Aliases
-  aliases                 = [local.name]
-  aliases_use_name_prefix = true
+  # 별칭 설정
+  aliases                 = [local.name]  # local.name을 별칭으로 사용합니다.
+  aliases_use_name_prefix = true          # 별칭에 이름 접두사 사용 설정
 
-  key_owners = [data.aws_caller_identity.current.id]
+  key_owners = [data.aws_caller_identity.current.id]  # 현재 AWS 호출자 ID를 키 소유자로 설정합니다.
 
-  tags = local.tags
+  tags = local.tags  # 로컬 변수에서 태그를 할당합니다.
 
   providers = {
-    aws = aws.secondary
+    aws = aws.secondary  # 이 모듈에 대한 제공자로 aws.secondary를 사용합니다.
   }
 }
+
 
 module "master" {
   source = "terraform-aws-modules/rds/aws"
 
-  identifier = "${local.name}-master"
+  identifier = "${local.name}-master"  # 식별자 설정
 
   engine               = local.db.engine
   engine_version       = local.db.engine_version
@@ -633,69 +634,71 @@ module "master" {
   allocated_storage     = local.db.allocated_storage
   max_allocated_storage = local.db.max_allocated_storage
 
-  db_name                     = "testdb"
-  username                    = "admin"
-  password                    = "password!"
-  manage_master_user_password = false
+  db_name                     = "testdb"  # 데이터베이스 이름 설정
+  username                    = "admin"   # 관리자 계정 설정
+  password                    = "password!"  # 비밀번호 설정
+  manage_master_user_password = false     # 마스터 사용자 비밀번호 관리 설정
 
-  port = local.db.port
+  port = local.db.port  # 포트 설정
 
-  multi_az               = true
-  db_subnet_group_name   = module.primary_vpc.database_subnet_group_name
-  vpc_security_group_ids = [module.primary_internal_db_sg.security_group_id]
+  multi_az               = true  # 다중 가용 영역 설정
+  db_subnet_group_name   = module.primary_vpc.database_subnet_group_name  # 데이터베이스 서브넷 그룹 설정
+  vpc_security_group_ids = [module.primary_internal_db_sg.security_group_id]  # VPC 보안 그룹 ID 설정
 
-  ca_cert_identifier = "rds-ca-rsa4096-g1" # 인증서 옵션
+  ca_cert_identifier = "rds-ca-rsa4096-g1"  # CA 인증서 식별자
 
-  # Backups are required in order to create a replica
-  backup_retention_period = 1
-  skip_final_snapshot     = true
-  deletion_protection     = false
+  # 레플리카 생성을 위해 백업이 필요합니다.
+  backup_retention_period = 1  # 백업 보존 기간 설정
+  skip_final_snapshot     = true  # 최종 스냅샷 스킵 설정
+  deletion_protection     = false  # 삭제 보호 설정
 
-  tags = local.tags
+  tags = local.tags  # 로컬 변수에서 태그 할당
 }
+
 
 module "replica" {
   source = "terraform-aws-modules/rds/aws"
 
   providers = {
-    aws = aws.secondary
+    aws = aws.secondary  # 이 모듈에 대한 제공자로 aws.secondary를 사용합니다.
   }
 
-  identifier = "${local.name}-replica"
+  identifier = "${local.name}-replica"  # 식별자 설정
 
-  # Source database. For cross-region use db_instance_arn
-  replicate_source_db = module.master.db_instance_arn
+  # 소스 데이터베이스. 교차 지역을 위해 db_instance_arn 사용
+  replicate_source_db = module.master.db_instance_arn  # 레플리카 소스 데이터베이스 설정
 
   engine               = local.db.engine
   engine_version       = local.db.engine_version
   family               = local.db.family
   major_engine_version = local.db.major_engine_version
   instance_class       = local.db.instance_class
-  kms_key_id           = module.kms.key_arn
+  kms_key_id           = module.kms.key_arn  # KMS 키 ID 설정
 
   allocated_storage     = local.db.allocated_storage
   max_allocated_storage = local.db.max_allocated_storage
 
-  password                    = "password!"
-  manage_master_user_password = false
+  password                    = "password!"  # 비밀번호 설정
+  manage_master_user_password = false  # 마스터 사용자 비밀번호 관리 설정
 
-  # Username and password should not be set for replicas
-  port = local.db.port
+  # 레플리카에는 사용자 이름과 비밀번호를 설정해서는 안 됩니다.
+  port = local.db.port  # 포트 설정
 
-  multi_az               = false
-  vpc_security_group_ids = [module.secondary_internal_db_sg.security_group_id]
+  multi_az               = false  # 다중 가용 영역 설정
+  vpc_security_group_ids = [module.secondary_internal_db_sg.security_group_id]  # VPC 보안 그룹 ID 설정
 
-  ca_cert_identifier = "rds-ca-rsa4096-g1" # 인증서 옵션
+  ca_cert_identifier = "rds-ca-rsa4096-g1"  # CA 인증서 식별자
 
-  backup_retention_period = 0
-  skip_final_snapshot     = true
-  deletion_protection     = false
+  backup_retention_period = 0  # 백업 보존 기간 설정
+  skip_final_snapshot     = true  # 최종 스냅샷 스킵 설정
+  deletion_protection     = false  # 삭제 보호 설정
 
-  # Specify a subnet group created in the replica region
+  # 레플리카 리전에서 생성된 서브넷 그룹 지정
   db_subnet_group_name = module.secondary_vpc.database_subnet_group_name
 
-  tags = local.tags
+  tags = local.tags  # 로컬 변수에서 태그 할당
 }
+
 
 #######################################################################
 # AWS RDS
