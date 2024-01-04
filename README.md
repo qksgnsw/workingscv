@@ -9,13 +9,17 @@
   - [ ] 배포 정책과 방식에 따라 달라 질 수 있을 것
 - [ ] 일본리전
 
+# 1. 장애
+
+
+
 ### 실행
 - .tfvars 파일 만들어 참조해야 함.
 ```
 # {{ YOUR_ENV_FILE_NAME }}.tfvars
-region = YOUR_REGION
-domain = YOUR_DOMAIN_NAME
-isPrimary = true || false
+primary_region = "YOUR_PRIMARY_REGION"
+secondary_region = "YOUR_SECONDARY_REGION"
+domain = "YOUR_HOSTED_DOMAIN"
 ```
 ```sh
 terraform init
@@ -210,7 +214,7 @@ cd ./workingscv
     - [x] Delete
     - [x] Get
 
-# 4. ❗️ 팁
+# 3. ❗️ 팁
 
 - DB 인증서
   - 기본 인증서로 생성하면 인증서 만료 알림이 뜸.
@@ -247,3 +251,17 @@ cd ./workingscv
   - CloudFormation으로 구현
   - 각 리전에 대한 테라폼 배포 후
   - cloudformation에 있는 failover 스택으로 배포
+
+# 4. 추가로 구현해야하는 서비스
+- 교차지역 rds를 secret manager 사용
+  - 단일리전에서 구현했으나 secondary에서 구현하지 못함
+- WAF에서 alb 로그는 수동으로 구성
+  - 테라폼으로 자동으로 구현
+- 각 애플리케이션들을 도커라이징하여 AWS의 도커 서비스들을 이용하기
+- DR 자동 복구 솔루션
+  - Multi-AZ 및 Multi-region, failover routing policy로 구성
+  - 자동 승격 솔루션이 필요
+      - 재해 감지
+      - 관리자에게 이벤트 알림
+      - secondary 리전의 primary 승격
+      - read only replica의 승격
