@@ -1,7 +1,7 @@
 # Working SCV Project
 
 ### Architecture
-![](./images/team_project3-2.drawio.png)
+![](./images/team_project4-1.drawio.png)
 
 - [ ] 서울리전
   - [ ] 배포와 테스트를 위한 인프라 구축 가능성.
@@ -9,11 +9,9 @@
   - [ ] 배포 정책과 방식에 따라 달라 질 수 있을 것
 - [ ] 일본리전
 
-# 1. 장애
+# 1. [재해복구](https://github.com/qksgnsw/devops/tree/main/project)
 
-
-
-### 실행
+### 0. 실행
 - .tfvars 파일 만들어 참조해야 함.
 ```
 # {{ YOUR_ENV_FILE_NAME }}.tfvars
